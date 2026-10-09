@@ -1,12 +1,14 @@
     // Public-player controls. This snippet runs inside the existing simulator closure.
-    const publicSettingKeys=['encounterMode','rangeKm','visibility','accuracyScale','maneuverMode','repairPolicy','magazineRisk','magazinePropagation'];
-    const publicConditionInputs=[encounterInput,rangeInput,visibilityInput,accuracyInput,maneuverInput,repairInput,magazineRiskInput,propagationInput];
+    const publicSettingKeys=['encounterMode','rangeKm','visibility','accuracyScale','maneuverMode','repairPolicy','magazineRisk','magazinePropagation','yamatoAmmo','iowaAmmo'];
+    const publicConditionInputs=[encounterInput,rangeInput,visibilityInput,accuracyInput,maneuverInput,repairInput,magazineRiskInput,propagationInput,yamatoAmmoInput,iowaAmmoInput];
     const publicConditionLabels={
       visibility:{clear:'맑음',haze:'박무',night:'야간'},
       maneuverMode:{evasive:'지그재그 기동',steady:'직선 항해'},
       repairPolicy:{balanced:'균형 대응','magazine-priority':'탄약고 설비 우선',none:'탄약고 설비 수리 중지'},
       magazineRisk:{normal:'기본',high:'높음 · 실험'},
-      magazinePropagation:{isolated:'구획별',chain:'연쇄 전파 · 실험'}
+      magazinePropagation:{isolated:'구획별',chain:'연쇄 전파 · 실험'},
+      yamatoAmmo:{ap:'철갑탄 · AP',he:'고폭탄 · HE'},
+      iowaAmmo:{ap:'철갑탄 · AP',he:'고폭탄 · HE'}
     };
     const publicSettingsPanel=document.createElement('div');
     publicSettingsPanel.className='card text-small';
@@ -53,6 +55,11 @@
         if(!values.includes(candidate[key]))return null;
         settings[key]=candidate[key];
       }
+      for(const key of ['yamatoAmmo','iowaAmmo']){
+        const value=candidate[key]??'ap';
+        if(!['ap','he'].includes(value))return null;
+        settings[key]=value;
+      }
       if(typeof candidate.accuracyScale!=='number'||!Number.isFinite(candidate.accuracyScale)||candidate.accuracyScale<.65||candidate.accuracyScale>1.5)return null;
       settings.accuracyScale=candidate.accuracyScale;
       if(settings.encounterMode==='maximum')settings.rangeKm=42;
@@ -61,7 +68,7 @@
       return settings;
     }
     function readPublicSettings(){
-      const candidate={encounterMode:encounterInput.value,rangeKm:Number(rangeInput.value),visibility:visibilityInput.value,accuracyScale:Number(accuracyInput.value),maneuverMode:maneuverInput.value,repairPolicy:repairInput.value,magazineRisk:magazineRiskInput.value,magazinePropagation:propagationInput.value};
+      const candidate={encounterMode:encounterInput.value,rangeKm:Number(rangeInput.value),visibility:visibilityInput.value,accuracyScale:Number(accuracyInput.value),maneuverMode:maneuverInput.value,repairPolicy:repairInput.value,magazineRisk:magazineRiskInput.value,magazinePropagation:propagationInput.value,yamatoAmmo:yamatoAmmoInput.value,iowaAmmo:iowaAmmoInput.value};
       return validatePublicSettings(candidate)||validatePublicSettings(config)||{encounterMode:'maximum',rangeKm:42,visibility:'clear',accuracyScale:1,maneuverMode:'evasive',repairPolicy:'balanced',magazineRisk:'normal',magazinePropagation:'isolated'};
     }
     function publicSettingsChanged(){
@@ -70,7 +77,7 @@
     }
     function refreshPublicControls(){
       const pending=publicSettingsChanged(),applied=validatePublicSettings(config)||readPublicSettings();
-      publicControlText(publicDamageModel,config.damageModel==='crew-vital'?'피해 모델 · 인력·손상통제':'피해 모델 · 이전 교전 재현');
+      publicControlText(publicDamageModel,config.damageModel==='energetic-crew'?'피해 모델 · 탄종·연료·인력':config.damageModel==='crew-vital'?'피해 모델 · 인력·손상통제':'피해 모델 · 이전 교전 재현');
       for(const input of publicConditionInputs)input.disabled=!!blastPreview;
       publicControlText(publicSummaryFields.rangeKm,applied.encounterMode==='maximum'?'최대 사거리 조우 · 42 km':'시작 거리 · '+applied.rangeKm+' km');
       publicControlText(publicSummaryFields.visibility,'시정 · '+publicConditionLabels.visibility[applied.visibility]);
@@ -79,6 +86,8 @@
       publicControlText(publicSummaryFields.magazineRisk,'유폭 위험 · '+publicConditionLabels.magazineRisk[applied.magazineRisk]);
       publicControlText(publicSummaryFields.magazinePropagation,'유폭 전파 · '+publicConditionLabels.magazinePropagation[applied.magazinePropagation]);
       publicControlText(publicSummaryFields.accuracyScale,'양측 명중률 보정 · '+applied.accuracyScale.toFixed(2)+'×');
+      publicControlText(publicSummaryFields.yamatoAmmo,'야마토 탄종 · '+publicConditionLabels.yamatoAmmo[applied.yamatoAmmo]);
+      publicControlText(publicSummaryFields.iowaAmmo,'아이오와 탄종 · '+publicConditionLabels.iowaAmmo[applied.iowaAmmo]);
       publicControlText(publicSettingsNotice,blastPreview?'유폭 연출 중에는 교전 조건을 바꿀 수 없습니다. 교전으로 돌아가서 변경하세요.':pending?'변경한 조건은 아직 적용되지 않았습니다. 설정 적용하고 다시 시작을 누르면 새 교전을 시작합니다.':'위 조건으로 교전 중입니다. 조건을 바꾼 뒤 설정 적용하고 다시 시작을 누르세요.');
       publicApplyButton.disabled=!pending||!!blastPreview;
       publicApplyButton.hidden=!pending||!!blastPreview;
@@ -93,6 +102,7 @@
       visibilityInput.value=settings.visibility;accuracyInput.value=String(settings.accuracyScale);
       maneuverInput.value=settings.maneuverMode;repairInput.value=settings.repairPolicy;
       magazineRiskInput.value=settings.magazineRisk;propagationInput.value=settings.magazinePropagation;
+      yamatoAmmoInput.value=settings.yamatoAmmo;iowaAmmoInput.value=settings.iowaAmmo;
       updateEncounterControls();
       root.querySelector('[data-accuracy-value]').textContent=settings.accuracyScale.toFixed(2)+'×';
       refreshPublicControls();return true;

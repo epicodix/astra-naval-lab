@@ -2146,7 +2146,7 @@ __ASTRA_SIMULATION_FRAGMENT__
   let viewportHeight = globalThis.innerHeight;
   const locationParams = new URLSearchParams(globalThis.location.search);
   const preset = locationParams.get("preset");
-  const publicMode = ["preview", "battle", "maximum", "blast"].includes(preset) ? preset : "maximum";
+  const publicMode = ["preview", "battle", "maximum", "blast", "he"].includes(preset) ? preset : "maximum";
   const freshEntry = locationParams.get("fresh") === "1";
   const stateParams = new URLSearchParams(locationParams);
   stateParams.delete("lang");
@@ -2355,6 +2355,8 @@ __ASTRA_SIMULATION_FRAGMENT__
         note.textContent = english
           ? "Your saved battle and viewpoint have been restored. Replay this battle starts from the beginning; New battle starts another run."
           : "이 브라우저에 저장된 교전과 시점을 복원했습니다. 같은 교전 다시 보기로 처음부터 재생하거나, 새 교전으로 새로운 결과를 볼 수 있습니다.";
+      } else if (publicMode === "he") {
+        note.textContent = english ? "6 km engagement · Both ships use high-explosive shells. Select Play to begin, or change each ship’s ammunition in the battle settings." : "6 km 교전 · 양측 고폭탄. 계속 재생을 누르거나 함선별 탄종을 바꿔 비교해보세요.";
       } else if (publicMode === "battle" || publicMode === "maximum") {
         note.textContent = english
           ? (publicMode === "maximum" ? "42 km maximum-range encounter" : "6 km close-range engagement") + " · Select Play to begin. New battle starts another run with a new seed."

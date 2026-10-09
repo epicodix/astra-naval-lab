@@ -13,11 +13,15 @@ Set the engagement range and sea conditions, then watch the ships maneuver and e
 - Damage to machinery, electrical power and ammunition feeds along a shell's internal path
 - Fire, flooding, damage control and magazine explosions
 - Operator and repair-party losses, shared response capacity and accumulated damage to local structure
+- Independent AP / HE selection for each ship, with distinct impact blasts, fragments and ignition
+- Fuel leaks and fires caused by actual internal damage, with finite fuel and shared firefighting capacity
 - Playback, pause, timeline seeking and slow motion
 
 This is a **game model inspired by historical ships and equipment**. Ballistics, armor, damage and explosion probabilities use approximations; this project is not a calibrated military simulation. A small number of vital penetrations can be lethal, but the simulation does not trigger an explosion simply because a hit counter reaches a threshold.
 
 In v12, operator and repair-party percentages represent **remaining capacity**, not actual casualty counts. Internal shell paths expose specific compartments to blast and fragments; damage weakens their structure and increases the effect of later impacts in the same area. Lost personnel capacity does not return during the battle. A finite pool of repair parties is shared across firefighting, pumping, cooling and equipment repairs. **Disable magazine-system repairs** stops only repairs to magazine equipment; automatic damage response still operates within the remaining capacity. Loss of operating capability is recorded as **combat ineffective**, separately from sinking.
+
+In v13, AP favors penetration into protected systems; HE produces a larger local blast, fragments and surface fire, with less penetration and a shorter internal path. HE stopped at the outer hull cannot damage deep machinery or stored charges just because the impact is labeled as their region. Actual internal paths can rupture the modeled fuel systems in machinery spaces. Leaks need an ignition source and loss of containment before they burn, and the fire consumes finite fuel while competing for the same repair parties. Fuel fires and magazine explosions remain separate events: a full tank or magazine does not automatically explode. Both ammunition types currently share the approximated exterior trajectories and range limits; this is not a historical shell performance table.
 
 ## Run locally
 
@@ -38,13 +42,14 @@ A recent desktop browser with WebGL support is recommended. No npm install or bu
 | `simulator.html?preset=battle&lang=en` | A 6 km engagement, with playback speed set to 4× |
 | `simulator.html?preset=blast&lang=en` | Just before a magazine explosion in a simulated battle, at 0.25× speed |
 | `simulator.html?preset=maximum&lang=en` | A 42 km encounter, with playback speed set to 4× |
+| `simulator.html?preset=he&lang=en` | A 6 km encounter with both ships using HE, at 1× speed |
 | `simulator.html?preset=preview&lang=en` | The Yamato exterior preview used on the landing page |
 
 The landing page's main start button opens a **42 km encounter**. Close-range battles and explosion scenes have separate links. Fresh-start links use `fresh=1` to skip saved state; that flag is removed after loading, so later refreshes restore the current battle. Resume saved battle opens the saved long-range preset session. Without a preset, the simulator starts with a maximum-range encounter.
 
 Battles open paused. Play resumes the current battle. Editing battle conditions displays a pending-changes notice; **Apply settings and restart** or **New battle** uses those selections and a new random seed. **Replay this battle** retains the currently applied conditions and seed. Sea state, playback speed, camera, cutaway and trajectory controls apply immediately. Pending settings survive refreshes and language switching.
 
-Saved v11 battles restore and replay with the previous damage model. **New battle** or **Apply settings and restart** starts a new run with the v12 personnel and damage-control model.
+Saved v11 and v12 battles restore and replay with their previous damage models. **New battle** or **Apply settings and restart** starts a new run with the v13 ammunition, fuel, personnel and damage-control model.
 
 ## Edit and rebuild
 

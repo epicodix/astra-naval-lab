@@ -14,23 +14,23 @@ def replace_once(old, new):
     fragment = fragment.replace(old, new, 1)
 
 replace_once(
-    '<div id="naval-duel" data-experiment="crew-damage">',
-    '<div id="naval-duel" data-experiment="crew-damage" data-public-mode="" data-public-lang="ko" data-public-ready="false">',
+    '<div id="naval-duel" data-experiment="energetic-damage">',
+    '<div id="naval-duel" data-experiment="energetic-damage" data-public-mode="" data-public-lang="ko" data-public-ready="false">',
 )
 fragment = fragment.replace('class="viz-controls"', 'class="viz-controls" inert')
 fragment = fragment.replace('aria-label="교전 거리"', 'aria-label="교전 거리" data-distance-summary', 1)
 fragment = fragment.replace('[aria-label="교전 거리"]', '[data-distance-summary]')
 replace_once(
-    "const crewDamageExperiment=root.dataset.experiment",
-    "const publicMode=root.dataset.publicMode||'';\n    const crewDamageExperiment=root.dataset.experiment",
+    "const energeticDamageExperiment=root.dataset.experiment",
+    "const publicMode=root.dataset.publicMode||'';\n    const energeticDamageExperiment=root.dataset.experiment",
 )
 marker = "    if(directFireExperiment){const near=document.createElement('option');"
 public_startup = """    if(publicMode==='preview'){
       clock=0;focus='yamato';trajectoryMode=false;focusInput.value=focus;trajectoryInput.checked=false;
     }
-    if(publicMode==='battle'||publicMode==='maximum'){
-      config={...config,seed:19440426,encounterMode:publicMode==='maximum'?'maximum':'set-range',rangeKm:publicMode==='maximum'?42:6};
-      duel=buildBattle(config);clock=0;hasRun=true;speed=4;focus='whole';speedInput.value='4';focusInput.value=focus;
+    if(publicMode==='battle'||publicMode==='maximum'||publicMode==='he'){
+      config={...config,seed:19440426,encounterMode:publicMode==='maximum'?'maximum':'set-range',rangeKm:publicMode==='maximum'?42:6,yamatoAmmo:publicMode==='he'?'he':'ap',iowaAmmo:publicMode==='he'?'he':'ap'};
+      duel=buildBattle(config);clock=0;hasRun=true;speed=publicMode==='he'?1:4;focus='whole';speedInput.value=String(speed);focusInput.value=focus;yamatoAmmoInput.value=config.yamatoAmmo;iowaAmmoInput.value=config.iowaAmmo;
     }
 """
 if fragment.count(marker) != 1:
@@ -42,7 +42,7 @@ fragment = fragment.replace(
 )
 controls = (ROOT / 'source/public-controls.js').read_text(encoding='utf-8')
 replace_once("    start.addEventListener('click',()=>begin(true));", controls + "\n    start.addEventListener('click',()=>begin(true));")
-replace_once("privateContent:{version:crewDamageExperiment?", "privateContent:{publicDraft:publicSettingsChanged()?readPublicSettings():null,version:crewDamageExperiment?")
+replace_once("privateContent:{version:energeticDamageExperiment?", "privateContent:{publicDraft:publicSettingsChanged()?readPublicSettings():null,version:energeticDamageExperiment?")
 replace_once("iowaEvasion:String(snapshot.ships.iowa.maneuver?.evasionEffect||0)});", "iowaEvasion:String(snapshot.ships.iowa.maneuver?.evasionEffect||0)});\n      refreshPublicControls();")
 replace_once("if(v.blastPreview&&['yamato','iowa'].includes(v.blastPreview.ship)&&[0,1,2].includes(v.blastPreview.turretIndex))showBlastPreview({...v.blastPreview,autoplay:false,restoring:true});", "if(v.blastPreview&&['yamato','iowa'].includes(v.blastPreview.ship)&&[0,1,2].includes(v.blastPreview.turretIndex))showBlastPreview({...v.blastPreview,autoplay:false,restoring:true});\n      restorePublicDraft(v.publicDraft);")
 replace_once("restore(window.openai?.widgetState);window.addEventListener('openai:set_globals'", "restore(window.openai?.widgetState);if(publicMode!=='preview')persist();window.addEventListener('openai:set_globals'")
