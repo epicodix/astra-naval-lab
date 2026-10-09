@@ -2,6 +2,8 @@
 
 **GPT Astra로 만든 야마토 × 아이오와 3D 전함 시뮬레이터.**
 
+[브라우저에서 실행](https://epicodix.github.io/astra-naval-lab/) · [유폭 장면 보기](https://epicodix.github.io/astra-naval-lab/simulator.html?preset=blast)
+
 두 전함의 기동과 포격, 관통 피해와 탄약고 유폭을 브라우저에서 볼 수 있습니다. 사용자가 기능과 디테일을 제안하고, GPT Astra와 함께 함선 모델과 전투 로직을 구현했습니다.
 
 ## 기능
