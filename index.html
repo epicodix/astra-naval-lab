@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="GPT Astra로 만든 야마토 × 아이오와 3D 전함 시뮬레이터. 교전 거리를 설정하고 포탄 궤적, 내부 손상과 탄약고 유폭을 확인할 수 있습니다.">
+  <meta name="theme-color" content="#0a1420">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="ASTRA NAVAL LAB · 야마토 × 아이오와">
+  <meta property="og:description" content="GPT Astra로 만든 야마토 × 아이오와 3D 전함 시뮬레이터. 함포전과 내부 손상, 탄약고 유폭을 브라우저에서 볼 수 있습니다.">
+  <title>ASTRA NAVAL LAB · Built with GPT Astra</title>
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="assets/site.css">
+</head>
+<body>
+  <a class="skip" href="#main">본문으로 이동</a>
+  <header class="masthead wrap">
+    <a class="wordmark" href="./" aria-label="Astra Naval Lab 홈">ASTRA<span>NAVAL LAB</span></a>
+    <nav aria-label="주 메뉴"><a href="#about">프로젝트</a><a href="https://github.com/epicodix/astra-naval-lab" target="_blank" rel="noopener noreferrer">GitHub ↗</a></nav>
+  </header>
+  <main id="main">
+    <section class="hero wrap" aria-labelledby="hero-title">
+      <div class="hero-copy">
+        <p class="eyebrow"><span class="signal" aria-hidden="true"></span> YAMATO VS. IOWA / 1944</p>
+        <h1 id="hero-title">야마토<span class="versus">×</span>아이오와</h1>
+        <p class="lead">GPT Astra로 만든 전함 시뮬레이터</p>
+        <p class="intro">거리와 파도를 설정해 두 전함의 포격전을 돌려보세요.<br class="desktop-break"> 포탄 궤적과 내부 손상, 탄약고 유폭을 볼 수 있습니다.</p>
+        <div class="actions">
+          <a class="button primary" href="simulator.html?preset=battle">시뮬레이터 열기 <span aria-hidden="true">↗</span></a>
+          <a class="button secondary" href="simulator.html?preset=blast">유폭 장면 보기</a>
+        </div>
+        <p class="availability">브라우저에서 바로 플레이 · 데스크톱 권장</p>
+      </div>
+      <figure class="model-window">
+        <div class="model-caption"><span>IJN YAMATO</span><span>3D MODEL / 1944</span></div>
+        <iframe class="model-preview" src="simulator.html?preset=preview&amp;v=2" title="야마토 전함의 실제 3D 외관 미리보기" loading="eager" aria-hidden="true" inert></iframe>
+        <figcaption><span>46 cm 주포 · 3연장 포탑 3기</span><span>실제 플레이 모델</span></figcaption>
+        <p class="model-fallback">3D 화면이 보이지 않으면 <a href="simulator.html?preset=battle">플레이 화면 열기</a></p>
+      </figure>
+    </section>
+    <section class="features wrap" aria-label="전투에서 볼 수 있는 것">
+      <article><span class="feature-number">01 / BALLISTICS</span><h2>포탄 궤적과 조준</h2><p>조준 예측선과 실제 포탄 궤적을 표시합니다. 사거리에 따른 평사·곡사와 산포, 회피 기동을 확인할 수 있습니다.</p></article>
+      <article><span class="feature-number">02 / VITAL DAMAGE</span><h2>관통과 내부 손상</h2><p>포탄의 내부 관통 경로에 따라 기관·전력·급탄 설비가 손상됩니다. 피해는 속력과 재장전, 사격 가능 여부에 영향을 줍니다.</p></article>
+      <article><span class="feature-number">03 / MAGAZINE</span><h2>탄약고 유폭</h2><p>탄약고 직접 관통이나 화재로 유폭이 발생할 수 있습니다. 슬로모션과 교전 기록으로 발생 과정과 피해를 볼 수 있습니다.</p></article>
+    </section>
+    <section class="about wrap" id="about" aria-labelledby="about-title">
+      <div><p class="eyebrow">ABOUT</p><h2 id="about-title">프로젝트 소개</h2></div>
+      <div class="about-copy"><p>GPT Astra와 함께 만든 야마토·아이오와 가상 교전입니다. 사용자가 기능과 디테일을 제안하고, 함선 모델링부터 포탑 애니메이션, 탄도와 손상 판정까지 구현했습니다.</p><p>역사적 제원과 배치를 참고했습니다. 탄도·장갑·손상 판정은 게임을 위한 근사 모델입니다.</p><a class="text-link" href="simulator.html?preset=maximum">42 km 조우 모드 열기 →</a></div>
+    </section>
+  </main>
+  <footer class="wrap footer"><span>ASTRA NAVAL LAB <span class="footer-detail">/ YAMATO VS. IOWA</span></span><span>Built with GPT Astra</span></footer>
+</body>
+</html>
