@@ -2145,17 +2145,23 @@ __ASTRA_SIMULATION_FRAGMENT__
   }
   let viewportHeight = globalThis.innerHeight;
   const locationParams = new URLSearchParams(globalThis.location.search);
+  const preset = locationParams.get("preset");
+  const publicMode = ["preview", "battle", "maximum", "blast"].includes(preset) ? preset : "maximum";
+  const freshEntry = locationParams.get("fresh") === "1";
   const stateParams = new URLSearchParams(locationParams);
   stateParams.delete("lang");
   stateParams.delete("v");
+  stateParams.delete("fresh");
   stateParams.sort();
   const stateSearch = stateParams.size ? "?" + stateParams.toString() : "";
   const storageKey = `codex:visualization-widget-state-v2:${JSON.stringify([
     globalThis.location.pathname,
     stateSearch,
   ])}`;
+  const legacyParams = new URLSearchParams(locationParams);
+  legacyParams.delete("fresh");
   const legacyStorageKey = `codex:visualization-widget-state-v2:${JSON.stringify([
-    globalThis.location.pathname, globalThis.location.search,
+    globalThis.location.pathname, legacyParams.size ? "?" + legacyParams.toString() : "",
   ])}`;
   const parseState = (serializedState) => {
     if (
@@ -2202,7 +2208,12 @@ __ASTRA_SIMULATION_FRAGMENT__
     localStorage.setItem(probeKey, "1");
     localStorage.removeItem(probeKey);
     storage = localStorage;
-    const savedState = storage.getItem(storageKey) ?? storage.getItem(legacyStorageKey);
+    if (freshEntry && publicMode !== "preview") {
+      storage.removeItem(storageKey);
+      storage.removeItem(legacyStorageKey);
+    }
+    const savedState = freshEntry || publicMode === "preview" ? null
+      : storage.getItem(storageKey) ?? storage.getItem(legacyStorageKey);
     if (savedState != null) {
       try {
         state = parseState(savedState);
@@ -2215,7 +2226,7 @@ __ASTRA_SIMULATION_FRAGMENT__
   }
   const initialGlobals = {
     widgetState: state,
-    statePersistence: storage == null ? "none" : "local",
+    statePersistence: storage == null || publicMode === "preview" ? "none" : "local",
   };
 
   const channel = new MessageChannel();
@@ -2230,7 +2241,7 @@ __ASTRA_SIMULATION_FRAGMENT__
       }
       let ok = false;
       try {
-        if (storage != null) {
+        if (storage != null && publicMode !== "preview") {
           const state = parseState(data.state);
           storage.setItem(storageKey, JSON.stringify(state));
           ok = true;
@@ -2312,8 +2323,6 @@ __ASTRA_SIMULATION_FRAGMENT__
     }
   });
   channel.port1.start();
-  const preset = locationParams.get("preset");
-  const publicMode = ["preview", "battle", "maximum"].includes(preset) ? preset : "blast";
   if (publicMode === "preview") document.documentElement.classList.add("public-preview");
   const note = document.getElementById("preset-note");
   const requestedLanguage = locationParams.get("lang");
@@ -2355,8 +2364,8 @@ __ASTRA_SIMULATION_FRAGMENT__
           ? "Paused just before a magazine explosion. Select Play to watch at 0.25× speed. "
           : "유폭 직전의 교전입니다. 계속 재생을 누르면 0.25× 속도로 재생됩니다. ";
         const battleLink = document.createElement("a");
-        battleLink.href = "simulator.html?preset=battle&lang=" + language;
-        battleLink.textContent = english ? "Start a battle from the beginning →" : "처음부터 교전하기 →";
+        battleLink.href = "simulator.html?preset=maximum&fresh=1&lang=" + language;
+        battleLink.textContent = english ? "Start a 42 km battle →" : "42 km 장거리 교전 시작 →";
         note.append(battleLink);
       }
     }
@@ -2390,6 +2399,12 @@ __ASTRA_SIMULATION_FRAGMENT__
         [channel.port2],
       );
       frame.contentWindow?.postMessage({type: "astra-display-language", language}, "*");
+      if (freshEntry) {
+        const url = new URL(globalThis.location.href);
+        url.searchParams.delete("fresh");
+        globalThis.history.replaceState(null, "", url);
+        renderLanguage(language);
+      }
     },
     { once: true },
   );

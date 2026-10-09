@@ -37,7 +37,9 @@ A recent desktop browser with WebGL support is recommended. No npm install or bu
 | `simulator.html?preset=maximum&lang=en` | A 42 km encounter, with playback speed set to 4× |
 | `simulator.html?preset=preview&lang=en` | The Yamato exterior preview used on the landing page |
 
-Battles open paused. Resume playback to watch the prepared battle, or start a new battle to use a new random seed with the current settings. Previously saved state for a preset is restored when available. Without a preset, the simulator starts with the explosion scene.
+The landing page's main start button opens a **42 km encounter**. Close-range battles and explosion scenes have separate links. Fresh-start links use `fresh=1` to skip saved state; that flag is removed after loading, so later refreshes restore the current battle. Resume saved battle opens the saved long-range preset session. Without a preset, the simulator starts with a maximum-range encounter.
+
+Battles open paused. Play resumes the current battle. Editing battle conditions displays a pending-changes notice; **Apply settings and restart** or **New battle** uses those selections and a new random seed. **Replay this battle** retains the currently applied conditions and seed. Sea state, playback speed, camera, cutaway and trajectory controls apply immediately. Pending settings survive refreshes and language switching.
 
 ## Edit and rebuild
 
@@ -50,6 +52,8 @@ python3 tools/build.py
 The build uses the Python standard library and regenerates `simulator.html`. Direct edits to that generated file are overwritten by the next build. Commit the regenerated player whenever its sources change. Edit landing page text directly in `index.html` and `en.html`; their shared styles live in `assets/site.css`.
 
 English display strings live in `assets/simulation-en.json`; `source/simulation-i18n.js` translates the interface without changing simulation state. Language switching preserves the current battle, playback and camera. Both languages share saved state for the same preset.
+
+`source/public-controls.js` manages applied settings, pending changes and draft restoration. The build inserts it into the original simulator's execution scope.
 
 ## GitHub Pages deployment
 
