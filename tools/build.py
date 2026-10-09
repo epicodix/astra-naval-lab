@@ -1,6 +1,7 @@
 """Build the portable player from its readable simulation source (stdlib only)."""
 from html import escape
 from pathlib import Path
+import json
 
 ROOT = Path(__file__).resolve().parents[1]
 fragment = (ROOT / "source/simulation.html").read_text(encoding="utf-8")
@@ -8,8 +9,10 @@ template = (ROOT / "source/player-template.html").read_text(encoding="utf-8")
 
 fragment = fragment.replace(
     '<div id="naval-duel" data-experiment="vital-hits">',
-    '<div id="naval-duel" data-experiment="vital-hits" data-public-mode="">', 1,
+    '<div id="naval-duel" data-experiment="vital-hits" data-public-mode="" data-public-lang="ko">', 1,
 )
+fragment = fragment.replace('aria-label="교전 거리"', 'aria-label="교전 거리" data-distance-summary', 1)
+fragment = fragment.replace('[aria-label="교전 거리"]', '[data-distance-summary]')
 fragment = fragment.replace(
     "const vitalHitsExperiment=root.dataset.experiment",
     "const publicMode=root.dataset.publicMode||'';\n    const vitalHitsExperiment=root.dataset.experiment", 1,
@@ -38,6 +41,10 @@ fragment += """
 #naval-duel[data-public-mode="preview"] .duel-scale{display:none}
 </style>
 """
+catalog = json.loads((ROOT / 'assets/simulation-en.json').read_text(encoding='utf-8'))
+catalog_json = json.dumps(catalog, ensure_ascii=False, separators=(',', ':')).replace('<', '\\u003c')
+fragment += '<script type="application/json" id="astra-english-catalog">' + catalog_json + '</script>\n'
+fragment += '<script>' + (ROOT / 'source/simulation-i18n.js').read_text(encoding='utf-8').replace('</script', '<\\/script') + '</script>\n'
 if template.count("__ASTRA_SIMULATION_FRAGMENT__") != 1:
     raise ValueError("Player template needs exactly one fragment placeholder")
 document = template.replace("__ASTRA_SIMULATION_FRAGMENT__", escape(fragment))

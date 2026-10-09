@@ -10,15 +10,16 @@
 <style>
 :root{color-scheme:dark;background:#0a1420;color:#e8eced;font-family:ui-sans-serif,-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo",sans-serif}
 body{padding:18px 24px;max-width:1440px;margin-inline:auto}
-.player-nav{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:4px 0 19px;border-bottom:1px solid #283845;margin-bottom:18px;font-size:11px;letter-spacing:.08em}
+.player-nav{display:flex;flex-wrap:wrap;align-items:center;gap:12px 16px;padding:4px 0 19px;border-bottom:1px solid #283845;margin-bottom:18px;font-size:11px;letter-spacing:.08em}
 .player-nav a{color:#e7ae74;text-decoration:none}.player-nav a:focus-visible{outline:2px solid #e7ae74;outline-offset:5px}
+.player-languages{display:flex;gap:12px;margin-left:auto;letter-spacing:0}.player-languages a[aria-current="true"]{color:#e8eced;text-decoration:underline;text-underline-offset:4px}
 .player-note{font-size:12px;line-height:1.6;color:#a1adb6;margin:0 0 18px}.player-note a{color:#e7ae74}
 .public-preview body{padding:0}.public-preview .player-nav,.public-preview .player-note{display:none}
 .public-preview #codex-visualization{height:100vh!important}
 @media(max-width:600px){body{padding:14px 12px}.player-nav{font-size:9px;letter-spacing:.03em}.player-note{font-size:11px}}
 </style></head>
 <body>
-<header class="player-nav"><a href="./">← ASTRA NAVAL LAB</a><span>BUILT WITH GPT ASTRA</span></header>
+<header class="player-nav"><a id="player-home" href="./">← ASTRA NAVAL LAB</a><span>BUILT WITH GPT ASTRA</span><nav class="player-languages" aria-label="Language"><a href="?lang=ko" lang="ko" data-language="ko">한국어</a><a href="?lang=en" lang="en" data-language="en">English</a></nav></header>
 <p class="player-note" id="preset-note">유폭 직전의 교전입니다. <strong>계속 재생</strong>을 누르면 0.25× 속도로 재생됩니다. <a href="simulator.html?preset=battle">처음부터 교전하기 →</a></p>
 <iframe id="codex-visualization" sandbox="allow-scripts" referrerpolicy="no-referrer" title="야마토 × 아이오와 · Built with GPT Astra" data-srcdoc="&lt;!doctype html&gt;
 &lt;html lang=&quot;ko&quot; data-theme=&quot;dark&quot; data-visualize-standalone&gt;
@@ -2143,9 +2144,18 @@ __ASTRA_SIMULATION_FRAGMENT__
     return;
   }
   let viewportHeight = globalThis.innerHeight;
+  const locationParams = new URLSearchParams(globalThis.location.search);
+  const stateParams = new URLSearchParams(locationParams);
+  stateParams.delete("lang");
+  stateParams.delete("v");
+  stateParams.sort();
+  const stateSearch = stateParams.size ? "?" + stateParams.toString() : "";
   const storageKey = `codex:visualization-widget-state-v2:${JSON.stringify([
     globalThis.location.pathname,
-    globalThis.location.search,
+    stateSearch,
+  ])}`;
+  const legacyStorageKey = `codex:visualization-widget-state-v2:${JSON.stringify([
+    globalThis.location.pathname, globalThis.location.search,
   ])}`;
   const parseState = (serializedState) => {
     if (
@@ -2192,7 +2202,7 @@ __ASTRA_SIMULATION_FRAGMENT__
     localStorage.setItem(probeKey, "1");
     localStorage.removeItem(probeKey);
     storage = localStorage;
-    const savedState = storage.getItem(storageKey);
+    const savedState = storage.getItem(storageKey) ?? storage.getItem(legacyStorageKey);
     if (savedState != null) {
       try {
         state = parseState(savedState);
@@ -2302,17 +2312,64 @@ __ASTRA_SIMULATION_FRAGMENT__
     }
   });
   channel.port1.start();
-  const preset = new URLSearchParams(globalThis.location.search).get("preset");
+  const preset = locationParams.get("preset");
   const publicMode = ["preview", "battle", "maximum"].includes(preset) ? preset : "blast";
   if (publicMode === "preview") document.documentElement.classList.add("public-preview");
   const note = document.getElementById("preset-note");
-  if (note && (publicMode === "battle" || publicMode === "maximum")) {
-    note.textContent = (publicMode === "maximum" ? "42 km 최대 사거리 조우" : "6 km 근거리 함포전") + " · 계속 재생을 누르면 시작합니다. 새 교전은 새로운 결과로 다시 시작합니다.";
+  const requestedLanguage = locationParams.get("lang");
+  let language = ["en", "ko"].includes(requestedLanguage) ? requestedLanguage
+    : (globalThis.navigator.language?.startsWith("ko") ? "ko" : "en");
+  const languageLinks = document.querySelectorAll("[data-language]");
+  function renderLanguage(next, updateUrl = false) {
+    language = next === "en" ? "en" : "ko";
+    const english = language === "en";
+    document.documentElement.lang = language;
+    document.title = english ? "Yamato vs Iowa Battleship Simulator | ASTRA NAVAL LAB" : "야마토 × 아이오와 · Built with GPT Astra";
+    document.querySelector('meta[name="description"]').content = english
+      ? "Yamato vs Iowa 3D battleship simulator. Follow shell trajectories, internal damage and magazine explosions. Built with GPT Astra."
+      : "야마토 × 아이오와 3D 함포전. Built with GPT Astra.";
+    frame.title = document.title;
+    document.getElementById("player-home").href = english ? "en.html" : "./";
+    if (updateUrl) {
+      const url = new URL(globalThis.location.href);
+      url.searchParams.set("lang", language);
+      globalThis.history.replaceState(null, "", url);
+    }
+    for (const link of languageLinks) {
+      const url = new URL(globalThis.location.href);
+      url.searchParams.set("lang", link.dataset.language);
+      link.href = url.href;
+      link.setAttribute("aria-current", String(link.dataset.language === language));
+    }
+    if (note) {
+      if (state?.modelContent?.battle && publicMode !== "preview") {
+        note.textContent = english
+          ? "Your saved battle and viewpoint have been restored. Replay this battle starts from the beginning; New battle starts another run."
+          : "이 브라우저에 저장된 교전과 시점을 복원했습니다. 같은 교전 다시 보기로 처음부터 재생하거나, 새 교전으로 새로운 결과를 볼 수 있습니다.";
+      } else if (publicMode === "battle" || publicMode === "maximum") {
+        note.textContent = english
+          ? (publicMode === "maximum" ? "42 km maximum-range encounter" : "6 km close-range engagement") + " · Select Play to begin. New battle starts another run with a new seed."
+          : (publicMode === "maximum" ? "42 km 최대 사거리 조우" : "6 km 근거리 함포전") + " · 계속 재생을 누르면 시작합니다. 새 교전은 새로운 결과로 다시 시작합니다.";
+      } else {
+        note.textContent = english
+          ? "Paused just before a magazine explosion. Select Play to watch at 0.25× speed. "
+          : "유폭 직전의 교전입니다. 계속 재생을 누르면 0.25× 속도로 재생됩니다. ";
+        const battleLink = document.createElement("a");
+        battleLink.href = "simulator.html?preset=battle&lang=" + language;
+        battleLink.textContent = english ? "Start a battle from the beginning →" : "처음부터 교전하기 →";
+        note.append(battleLink);
+      }
+    }
+    frame.contentWindow?.postMessage({type: "astra-display-language", language}, "*");
   }
-  if (note && publicMode !== "preview" && state?.modelContent?.battle) {
-    note.textContent = "이 브라우저에 저장된 교전과 시점을 복원했습니다. 같은 교전 다시 보기로 처음부터 재생하거나, 새 교전으로 새로운 결과를 볼 수 있습니다.";
-  }
-  const srcdoc = frame.dataset.srcdoc?.replace('data-public-mode=""', 'data-public-mode="' + publicMode + '"');
+  for (const link of languageLinks) link.addEventListener("click", event => {
+    event.preventDefault();
+    renderLanguage(link.dataset.language, true);
+  });
+  renderLanguage(language);
+  const srcdoc = frame.dataset.srcdoc
+    ?.replace('data-public-mode=""', 'data-public-mode="' + publicMode + '"')
+    .replace('data-public-lang="ko"', 'data-public-lang="' + language + '"');
   if (srcdoc == null) {
     return;
   }
@@ -2332,6 +2389,7 @@ __ASTRA_SIMULATION_FRAGMENT__
         "*",
         [channel.port2],
       );
+      frame.contentWindow?.postMessage({type: "astra-display-language", language}, "*");
     },
     { once: true },
   );

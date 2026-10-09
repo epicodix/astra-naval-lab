@@ -1,5 +1,9 @@
 # ASTRA NAVAL LAB
 
+**Yamato vs Iowa Battleship Simulator — built in collaboration with GPT Astra.**
+
+[Play in English](https://epicodix.github.io/astra-naval-lab/en.html) · [English README](README.en.md) · [한국어 웹사이트](https://epicodix.github.io/astra-naval-lab/)
+
 **GPT Astra로 만든 야마토 × 아이오와 3D 전함 시뮬레이터.**
 
 [브라우저에서 실행](https://epicodix.github.io/astra-naval-lab/) · [유폭 장면 보기](https://epicodix.github.io/astra-naval-lab/simulator.html?preset=blast)
@@ -24,7 +28,7 @@
 python3 -m http.server 8080
 ```
 
-`index.html`은 소개 화면, `simulator.html`은 함포전 화면입니다. WebGL을 지원하는 최신 데스크톱 브라우저를 권장합니다. 실행에는 npm 설치나 빌드가 필요하지 않습니다.
+`index.html`은 한국어 소개 화면, `en.html`은 영어 소개 화면, `simulator.html`은 함포전 화면입니다. 화면 상단에서 한국어와 영어를 선택할 수 있으며, 플레이 URL의 `lang=ko` 또는 `lang=en`으로 언어를 지정할 수 있습니다. WebGL을 지원하는 최신 데스크톱 브라우저를 권장합니다. 실행에는 npm 설치나 빌드가 필요하지 않습니다.
 
 플레이 중에는 GPT 모델을 호출하지 않습니다. API 키, 로그인, 별도 게임 서버나 데이터베이스도 필요하지 않습니다. Three.js r128과 OrbitControls를 사용하는 정적 HTML·JavaScript 프로젝트이며, 실행 상태는 브라우저 안에서 처리합니다. 외부 CDN 의존성이 남아 있는 배포본은 최초 로딩에 인터넷 연결이 필요합니다.
 
@@ -47,12 +51,14 @@ python3 -m http.server 8080
 python3 tools/build.py
 ```
 
-Python 표준 라이브러리만 사용해 `simulator.html`을 재생성합니다. 생성된 파일을 직접 수정하면 다음 재생성 때 덮어씁니다. 소개 화면은 `index.html`과 `assets/site.css`에서 수정합니다. 소스를 바꿨을 때는 재생성한 `simulator.html`도 함께 커밋합니다.
+Python 표준 라이브러리만 사용해 `simulator.html`을 재생성합니다. 생성된 파일을 직접 수정하면 다음 재생성 때 덮어씁니다. 소개 화면은 `index.html`, `en.html`과 `assets/site.css`에서 수정합니다. 소스를 바꿨을 때는 재생성한 `simulator.html`도 함께 커밋합니다.
+
+영문 문구는 `assets/simulation-en.json`, 화면 번역 처리는 `source/simulation-i18n.js`에서 관리합니다. 언어 전환은 재생 중에도 전투와 시점을 유지하며, 언어별로 같은 프리셋의 저장 상태를 공유합니다.
 
 ## GitHub Pages로 공개
 
 1. 이 폴더의 소스를 `main` 브랜치에 보관합니다.
-2. `index.html`, `simulator.html`, `.nojekyll`, `assets/`를 `gh-pages` 브랜치 루트에 올립니다.
+2. `index.html`, `en.html`, `simulator.html`, `robots.txt`, `sitemap.xml`, `.nojekyll`, `assets/`를 `gh-pages` 브랜치 루트에 올립니다.
 3. 저장소의 **Settings → Pages → Build and deployment → Source**에서 **Deploy from a branch**, 브랜치는 **gh-pages**, 폴더는 **/(root)**를 선택합니다.
 4. 배포가 끝나면 **Settings → Pages**에서 플레이 URL을 확인합니다. 이후 공개 파일을 바꿔 `gh-pages`에 푸시하면 갱신됩니다.
 
@@ -64,11 +70,15 @@ Python 표준 라이브러리만 사용해 `simulator.html`을 재생성합니�
 
 | 파일 | 역할 |
 | --- | --- |
-| `index.html` | 프로젝트 소개와 시뮬레이션 진입 |
+| `index.html` | 한국어 프로젝트 소개와 시뮬레이션 진입 |
+| `en.html` | 영어 프로젝트 소개와 시뮬레이션 진입 |
+| `sitemap.xml` | 검색 엔진에 제공하는 언어별 소개 페이지 주소 |
+| `robots.txt` | 크롤러 안내 파일 |
 | `simulator.html` | 바로 실행할 수 있는 생성된 플레이 화면 |
-| `assets/` | 소개 화면 스타일과 아이콘 |
+| `assets/` | 소개 화면 스타일·아이콘·영문 번역 문구 |
 | `source/simulation.html` | 함선 모델·전투 로직의 편집 가능한 소스 |
 | `source/player-template.html` | 플레이 화면의 문서 틀과 브라우저 상태 저장 |
+| `source/simulation-i18n.js` | 전투 상태를 유지하는 화면 번역 처리 |
 | `tools/build.py` | 소스를 묶어 독립 플레이 화면을 재생성 |
 | `.nojekyll` | 정적 파일 배포 표시 |
 

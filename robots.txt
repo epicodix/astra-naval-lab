@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /astra-naval-lab/
+
+Sitemap: https://epicodix.github.io/astra-naval-lab/sitemap.xml
