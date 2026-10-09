@@ -13,16 +13,16 @@ def replace_once(old, new):
         raise ValueError(f"Public player insertion point changed: {old[:80]}")
     fragment = fragment.replace(old, new, 1)
 
-fragment = fragment.replace(
-    '<div id="naval-duel" data-experiment="vital-hits">',
-    '<div id="naval-duel" data-experiment="vital-hits" data-public-mode="" data-public-lang="ko" data-public-ready="false">', 1,
+replace_once(
+    '<div id="naval-duel" data-experiment="crew-damage">',
+    '<div id="naval-duel" data-experiment="crew-damage" data-public-mode="" data-public-lang="ko" data-public-ready="false">',
 )
 fragment = fragment.replace('class="viz-controls"', 'class="viz-controls" inert')
 fragment = fragment.replace('aria-label="교전 거리"', 'aria-label="교전 거리" data-distance-summary', 1)
 fragment = fragment.replace('[aria-label="교전 거리"]', '[data-distance-summary]')
-fragment = fragment.replace(
-    "const vitalHitsExperiment=root.dataset.experiment",
-    "const publicMode=root.dataset.publicMode||'';\n    const vitalHitsExperiment=root.dataset.experiment", 1,
+replace_once(
+    "const crewDamageExperiment=root.dataset.experiment",
+    "const publicMode=root.dataset.publicMode||'';\n    const crewDamageExperiment=root.dataset.experiment",
 )
 marker = "    if(directFireExperiment){const near=document.createElement('option');"
 public_startup = """    if(publicMode==='preview'){
@@ -42,12 +42,12 @@ fragment = fragment.replace(
 )
 controls = (ROOT / 'source/public-controls.js').read_text(encoding='utf-8')
 replace_once("    start.addEventListener('click',()=>begin(true));", controls + "\n    start.addEventListener('click',()=>begin(true));")
-replace_once("privateContent:{version:vitalHitsExperiment?", "privateContent:{publicDraft:publicSettingsChanged()?readPublicSettings():null,version:vitalHitsExperiment?")
+replace_once("privateContent:{version:crewDamageExperiment?", "privateContent:{publicDraft:publicSettingsChanged()?readPublicSettings():null,version:crewDamageExperiment?")
 replace_once("iowaEvasion:String(snapshot.ships.iowa.maneuver?.evasionEffect||0)});", "iowaEvasion:String(snapshot.ships.iowa.maneuver?.evasionEffect||0)});\n      refreshPublicControls();")
 replace_once("if(v.blastPreview&&['yamato','iowa'].includes(v.blastPreview.ship)&&[0,1,2].includes(v.blastPreview.turretIndex))showBlastPreview({...v.blastPreview,autoplay:false,restoring:true});", "if(v.blastPreview&&['yamato','iowa'].includes(v.blastPreview.ship)&&[0,1,2].includes(v.blastPreview.turretIndex))showBlastPreview({...v.blastPreview,autoplay:false,restoring:true});\n      restorePublicDraft(v.publicDraft);")
 replace_once("restore(window.openai?.widgetState);window.addEventListener('openai:set_globals'", "restore(window.openai?.widgetState);if(publicMode!=='preview')persist();window.addEventListener('openai:set_globals'")
 replace_once("loading.hidden=true;", "loading.hidden=true;root.dataset.publicReady='true';root.querySelectorAll('.viz-controls').forEach(control=>control.inert=false);")
-# Only the public cover changes presentation. The original physics source stays frozen.
+# The build adds the public controls and display layer to the simulation source.
 fragment += """
 <style>
 #naval-duel[data-public-mode="preview"] > :not(.duel-stage){display:none!important}

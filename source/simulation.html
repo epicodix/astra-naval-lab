@@ -1,11 +1,11 @@
-<div id="naval-duel" data-experiment="vital-hits">
+<div id="naval-duel" data-experiment="crew-damage">
   <div class="viz-row"><span>야마토 × 아이오와 · 1944 가상 교전</span><span class="text-small text-muted" data-battle-number>교전 대기</span></div>
   <div class="viz-controls" aria-label="교전 조건">
     <label class="form-label">조우 방식<select class="form-select" data-encounter data-tooltip="새 교전부터 적용"><option value="maximum" selected>최대 사거리 조우 · 42 km</option><option value="set-range">거리 지정</option></select></label>
     <label class="form-label" data-range-field hidden>시작 거리<select class="form-select" data-range><option value="12">12 km</option><option value="18" selected>18 km</option><option value="24">24 km</option></select></label>
     <label class="form-label">시정<select class="form-select" data-visibility><option value="clear">맑음</option><option value="haze">박무</option><option value="night">야간</option></select></label>
     <label class="form-label">기동<select class="form-select" data-maneuver data-tooltip="새 교전부터 적용"><option value="evasive" selected>지그재그 기동</option><option value="steady">직선 항해</option></select></label>
-    <label class="form-label">정비 대응<select class="form-select" data-repair-policy data-tooltip="양측에 동일하게 적용 · 새 교전부터 적용"><option value="balanced" selected>균형 대응</option><option value="magazine-priority">탄약고 설비 우선</option><option value="none">설비 수리 중지</option></select></label>
+    <label class="form-label">정비 대응<select class="form-select" data-repair-policy data-tooltip="양측에 동일하게 적용 · 새 교전부터 적용"><option value="balanced" selected>균형 대응</option><option value="magazine-priority">탄약고 설비 우선</option><option value="none">탄약고 설비 수리 중지</option></select></label>
     <label class="form-label">유폭 위험<select class="form-select" data-magazine-risk data-tooltip="양측에 동일하게 적용 · 새 교전부터 적용 · 높음은 장약 발화와 고열 유폭 위험을 높이는 게임 실험"><option value="normal" selected>기본</option><option value="high">높음 · 실험</option></select></label>
     <label class="form-label">유폭 전파<select class="form-select" data-magazine-propagation data-tooltip="양측에 동일하게 적용 · 새 교전과 연출 보기에 적용"><option value="isolated" selected>구획별</option><option value="chain">연쇄 전파 · 실험</option></select></label>
     <div class="duel-accuracy"><label class="form-label" for="duel-accuracy">양측 명중률 보정 <output class="tabular-nums" data-accuracy-value>1.00×</output></label><input class="form-range" id="duel-accuracy" data-accuracy type="range" min="0.65" max="1.5" step="0.05" value="1"></div>
@@ -84,7 +84,8 @@
 <script>
 (function(){
   const root=document.getElementById('naval-duel'),stage=root.querySelector('.duel-stage'),loading=root.querySelector('.duel-loading');
-  const vitalHitsExperiment=root.dataset.experiment==='vital-hits',directFireExperiment=root.dataset.experiment==='direct-fire'||vitalHitsExperiment,ballisticsExperiment=root.dataset.experiment==='ballistics'||directFireExperiment;
+  const crewDamageExperiment=root.dataset.experiment==='crew-damage';
+  const vitalHitsExperiment=root.dataset.experiment==='vital-hits'||crewDamageExperiment,directFireExperiment=root.dataset.experiment==='direct-fire'||vitalHitsExperiment,ballisticsExperiment=root.dataset.experiment==='ballistics'||directFireExperiment;
   try{
     if(!window.THREE||!THREE.OrbitControls)throw new Error('3D 라이브러리를 불러오지 못했습니다.');
     function addYamatoSuperstructure(T, ship, p, F) {
@@ -1810,8 +1811,9 @@ function createNavalDuel(options = {}) {
   // original collision model and random stream when no provider is supplied.
   const ballistics = options.ballistics && typeof options.ballistics.launch === 'function' && typeof options.ballistics.sweep === 'function' ? options.ballistics : null;
   const rangeAwareGunnery = Boolean(ballistics && options.gunneryModel === 'range-aware');
-  const vitalPathDamage = options.damageModel === 'vital-path' && rangeAwareGunnery;
-  const criticalDamage = options.damageModel === 'critical' || options.damageModel === 'vital-path';
+  const crewVitalDamage = options.damageModel === 'crew-vital' && rangeAwareGunnery;
+  const vitalPathDamage = (options.damageModel === 'vital-path' || crewVitalDamage) && rangeAwareGunnery;
+  const criticalDamage = options.damageModel === 'critical' || options.damageModel === 'vital-path' || options.damageModel === 'crew-vital';
   const chainPropagation = criticalDamage && options.magazinePropagation === 'chain';
   const cascadeDamage = !legacyDamage && options.damageModel !== 'equipment';
   // An optional spectacle experiment for the current cascade model. Saved
@@ -1825,8 +1827,8 @@ function createNavalDuel(options = {}) {
     accuracyScale: clamp(Number.isFinite(Number(options.accuracyScale)) ? Number(options.accuracyScale) : 1, .65, 1.5),
     maneuverMode: options.maneuverMode === 'steady' ? 'steady' : 'evasive',
     encounterMode: options.encounterMode === 'set-range' ? 'set-range' : 'maximum',
-    modelRevision: vitalPathDamage ? 'naval-duel-11' : rangeAwareGunnery ? 'naval-duel-10' : ballistics ? 'naval-duel-9' : legacyDamage ? 'naval-duel-4' : chainPropagation ? 'naval-duel-8' : criticalDamage ? 'naval-duel-7' : cascadeDamage ? 'naval-duel-6' : 'naval-duel-5',
-    damageModel: vitalPathDamage ? 'vital-path' : legacyDamage ? 'legacy' : criticalDamage ? 'critical' : cascadeDamage ? 'cascade' : 'equipment', repairPolicy,
+    modelRevision: crewVitalDamage ? 'naval-duel-12' : vitalPathDamage ? 'naval-duel-11' : rangeAwareGunnery ? 'naval-duel-10' : ballistics ? 'naval-duel-9' : legacyDamage ? 'naval-duel-4' : chainPropagation ? 'naval-duel-8' : criticalDamage ? 'naval-duel-7' : cascadeDamage ? 'naval-duel-6' : 'naval-duel-5',
+    damageModel: crewVitalDamage ? 'crew-vital' : vitalPathDamage ? 'vital-path' : legacyDamage ? 'legacy' : criticalDamage ? 'critical' : cascadeDamage ? 'cascade' : 'equipment', repairPolicy,
     abstraction: 'game',
     simulationStep: 1
   };
@@ -1906,6 +1908,10 @@ function createNavalDuel(options = {}) {
   const angleDelta = (a, b) => Math.atan2(Math.sin(a - b), Math.cos(a - b));
   const zoneIds = ['bow', 'stern', 'hull', 'bridge', 'engine', 'boiler', 'turretA', 'turretB', 'turretC', 'magazineA', 'magazineB', 'magazineC'];
   const zoneLabels = {bow: '선수', stern: '선미', hull: '측면 선체', bridge: '함교·사격 통제', engine: '기관 구획', boiler: '보일러 구획', turretA: '1번 주포탑', turretB: '2번 주포탑', turretC: '3번 주포탑', magazineA: '1번 탄약고 주변', magazineB: '2번 탄약고 주변', magazineC: '3번 탄약고 주변'};
+  // These finite cohorts represent game capacities, not historical headcounts.
+  // The weights sum to one; dispatching a party never creates another party.
+  const crewWeights = {bow: .02, stern: .03, hull: .03, bridge: .12, engine: .18, boiler: .14, turretA: .10, turretB: .10, turretC: .10, magazineA: .06, magazineB: .06, magazineC: .06};
+  const repairWeights = {bow: .04, stern: .04, hull: .12, bridge: .04, engine: .16, boiler: .15, turretA: .05, turretB: .05, turretC: .05, magazineA: .10, magazineB: .10, magazineC: .10};
   // Finite game compartments: these shares describe lost buoyancy, rather
   // than historically measured compartment capacities. Deck structures do
   // not contribute submerged volume or magically create a seawater opening.
@@ -1957,6 +1963,22 @@ function createNavalDuel(options = {}) {
       ships[id].criticalCause = null;
       for (const turret of ships[id].turrets) turret.feed = {hoist: 1, drive: 1, flashContainment: 1, available: true, supplyRate: 1, status: '정상', lastCause: null};
     }
+    if (crewVitalDamage) {
+      for (const zone of zoneIds) Object.assign(zones[zone], {crew: {operators: 1, repairParty: 1, lastCause: null}, structure: 1, equipment: {pump: 1, suppression: 1}});
+      ships[id].crew = {operators: 1, repairParties: 1};
+      ships[id].damageControl = {capacity: specs[id].dc, demand: 0, allocated: 0, activeZones: 0, status: '대기', allocations: []};
+      ships[id].operationalFailure = null;
+      ships[id]._repairTeams = zoneIds.map(zone => ({homeZone: zone, zone, task: null, weight: repairWeights[zone]}));
+      ships[id]._structuralSupports = Object.fromEntries(zoneIds.map(zone => [zone, [1, 1]]));
+      ships[id]._dcByZone = Object.fromEntries(zoneIds.map(zone => [zone, {fire: 0, flood: 0, cooling: 0, repair: 0, safety: 0}]));
+      ships[id]._operationCollapseSeconds = 0;
+      ships[id]._crewFailures = {};
+      ships[id]._vitalCauses = {};
+      ships[id]._turretCauses = {};
+      ships[id]._fireControlCause = null;
+      ships[id]._magazineThreatCauses = {};
+      ships[id]._magazineSafetyCauses = {};
+    }
     if (chainPropagation) ships[id]._chainEdges = new Set();
     ships[id].status = '교전 준비';
   }
@@ -1983,6 +2005,7 @@ function createNavalDuel(options = {}) {
     const causes = triggers.map(key => ship._failureCauses[key] || {cause: key === 'integrity' ? 'hull-failure' : key === 'flooding' ? 'flooding' : 'capsize', causeZone: 'hull', causeTime: now, source: null, shotId: null, trigger: key});
     causes.sort((a, b) => a.causeTime - b.causeTime || (a.trigger === 'structuralFailure' ? -1 : b.trigger === 'structuralFailure' ? 1 : 0));
     const first = causes[0], labels = {'hull-failure': '선체 파괴로 침몰', flooding: '침수로 부력 상실', capsize: '과도한 경사로 전복', magazine: first.trigger === 'structuralFailure' ? '탄약고 직접 피탄 · 선체 절단' : first.trigger === 'integrity' ? '탄약고 유폭 후 선체 파괴' : first.trigger === 'flooding' ? '탄약고 유폭 후 부력 상실' : '탄약고 유폭 후 전복'};
+    if (crewVitalDamage) labels.structural = '손상 구획 종통재 붕괴 · 선체 파괴';
     if (first.causeMode === 'chain-propagation') labels.magazine = first.trigger === 'integrity' ? '탄약고 연쇄 유폭 후 선체 파괴' : first.trigger === 'flooding' ? '탄약고 연쇄 유폭 후 부력 상실' : '탄약고 연쇄 유폭 후 전복';
     return {...first, time: now, label: labels[first.cause], causeLabel: labels[first.cause], triggerValue: ship[first.trigger], triggers,
       lastHit: clone(ship._lastImpact), detonatedMagazines: ship.turrets.map((t, i) => t.magazine.detonated ? 'magazine' + 'ABC'[i] : null).filter(Boolean)};
@@ -2227,6 +2250,7 @@ function createNavalDuel(options = {}) {
     faultEquipment(ship, ti, key, loss, shot.penetrated ? '피탄 충격' : '근접 충격', shot.ship, shot.shotId);
   }
   function prepareDamageControl(ship, dc) {
+    if (crewVitalDamage) { prepareSharedDamageControl(ship, dc); return; }
     const jobs = [];
     for (let ti = 0; ti < 3; ti++) {
       const magazine = ship.turrets[ti].magazine, node = ship.zones['magazine' + 'ABC'[ti]], surroundingFire = node.fire + ship.zones['turret' + 'ABC'[ti]].fire * .38;
@@ -2270,6 +2294,99 @@ function createNavalDuel(options = {}) {
         magazine.repairTarget = null; magazine.repairStatus = 'idle';
         ship._equipmentCooldown[job.ti][job.key] = now + 75;
         announce(ship, 'equipment_repair', 'magazine' + 'ABC'[job.ti], `${job.ti + 1}번 탄약고 ${equipmentLabels[job.key]} 기능 복구`, {turretIndex: job.ti, equipment: job.key, phase: 'complete', health: item.health});
+      }
+    }
+  }
+  function prepareSharedDamageControl(ship, dc) {
+    const tasks = [], repairs = [];
+    const addTask = (zone, task, demand, priority, extra = {}) => {
+      if (demand > 1e-8) tasks.push({zone, task, demand, priority, ...extra});
+    };
+    for (const zone of zoneIds) {
+      const node = ship.zones[zone], access = clamp(1 - node.fire * .65 - node.flooding * .6, 0, 1);
+      ship._dcByZone[zone] = {fire: 0, flood: 0, cooling: 0, repair: 0, safety: 0};
+      addTask(zone, 'fire', node.fire > .005 ? .18 + node.fire * .65 : 0, 1 + node.fire * 2, {access});
+      addTask(zone, 'flood', node.flooding > .005 || node.breach > .0001 ? .18 + node.flooding * .55 + node.breach * 3 : 0, 1 + node.flooding * 2 + node.breach * 10, {access});
+      addTask(zone, 'cooling', node.heat > .015 ? .08 + node.heat * .25 : 0, .5 + node.heat, {access});
+    }
+    // Existing machinery-stress draws stay in the equipment stream. New crew
+    // and structural channels never draw from this or the combat stream.
+    for (let ti = 0; ti < 3; ti++) {
+      const magazine = ship.turrets[ti].magazine, zone = 'magazine' + 'ABC'[ti], node = ship.zones[zone];
+      const surroundingFire = node.fire + ship.zones['turret' + 'ABC'[ti]].fire * .38;
+      const previousTarget = magazine.repairTarget, previousStatus = magazine.repairStatus;
+      magazine.repairTarget = null; magazine.repairStatus = repairPolicy === 'none' ? 'off' : 'idle';
+      if (magazine.flooded || magazine.detonated) continue;
+      for (const key of equipmentKeys) {
+        const item = magazine.equipment[key], working = key === 'suppression' ? surroundingFire > .035 : key === 'cooling' ? magazine.heat > .14 || surroundingFire > .035 : magazine.floodingActive;
+        if (working && !item.fault && now >= ship._equipmentCooldown[ti][key]) {
+          const stress = clamp((magazine.heat - .35) / .65) + surroundingFire * .5 + node.flooding * .4;
+          if (equipmentRandom() < .00022 + stress * .0007 + (key === 'floodPump' ? .00065 : 0)) faultEquipment(ship, ti, key, .34 + equipmentRandom() * .24, key === 'floodPump' ? '주수 작동 중 기계 결함' : '열·작동 부하로 기계 결함');
+        }
+      }
+      const faulted = equipmentKeys.filter(key => magazine.equipment[key].fault);
+      faulted.sort((a, b) => (1 - magazine.equipment[b].health) - (1 - magazine.equipment[a].health) + (b === 'floodPump' && magazine.floodingActive ? 2 : 0) - (a === 'floodPump' && magazine.floodingActive ? 2 : 0));
+      if (faulted.length) {
+        const key = faulted[0]; magazine.repairTarget = key;
+        if (repairPolicy !== 'none') {
+          if (node.fire > .78 || node.flooding > .72 || ship.integrity < .1) magazine.repairStatus = 'blocked';
+          else { const job = {ti, key, previousTarget, previousStatus}; repairs.push(job); addTask(zone, 'repair', .45, .65 + magazine.heat * 2 + surroundingFire + (magazine.floodingActive ? .65 : 0), {access: clamp(1 - node.fire * .65 - node.flooding * .6), job}); }
+        }
+      }
+      const coolingDemand = magazine.heat > .015 || surroundingFire > .01 ? .12 + magazine.heat * .35 + surroundingFire * .2 : 0;
+      const coolingTask = tasks.find(t => t.zone === zone && t.task === 'cooling');
+      if (coolingTask) { coolingTask.demand += coolingDemand; coolingTask.priority += magazine.heat; }
+      else addTask(zone, 'cooling', coolingDemand, .8 + magazine.heat * 2, {access: clamp(1 - node.fire * .65 - node.flooding * .6)});
+      if (magazine.floodingActive) {
+        // Intentional store flooding uses its own crew task. A safety party
+        // cannot also drain that store using the same effort in the same tick.
+        const floodTask = tasks.find(t => t.zone === zone && t.task === 'flood');
+        if (floodTask) floodTask.demand = 0;
+        addTask(zone, 'safety', .35, 3, {access: clamp(1 - node.fire * .65 - node.flooding * .6)});
+      }
+    }
+    if (repairPolicy === 'magazine-priority') for (const task of tasks) if (task.zone.startsWith('magazine')) task.priority *= 1.65;
+    updateCrewSummary(ship);
+    const capacity = Math.max(0, dc * ship.crew.repairParties), demand = tasks.reduce((sum, task) => sum + task.demand, 0);
+    const weightedDemand = tasks.reduce((sum, task) => sum + task.demand * task.priority * task.access, 0);
+    // Proportional allocation with a capped demand keeps the sum bounded. An
+    // inaccessible work site cannot use the same effort in another compartment.
+    const budget = Math.min(capacity, demand);
+    const allocations = [];
+    for (const task of tasks) {
+      const effort = weightedDemand > 0 ? Math.min(task.demand, budget * task.demand * task.priority * task.access / weightedDemand) : 0;
+      if (effort <= 1e-9) continue;
+      allocations.push({zone: task.zone, task: task.task, effort});
+    }
+    // Each surviving cohort can occupy only one work site in a tick. Keeping
+    // deployment lets an actual later room burst kill its dispatched party.
+    const queue = allocations.slice().sort((a, b) => b.effort - a.effort || a.zone.localeCompare(b.zone));
+    const remaining = queue.map(a => a.effort);
+    for (const team of ship._repairTeams.slice().sort((a, b) => b.weight * ship.zones[b.homeZone].crew.repairParty - a.weight * ship.zones[a.homeZone].crew.repairParty || a.homeZone.localeCompare(b.homeZone))) {
+      team.zone = team.homeZone; team.task = null; team.effort = 0;
+      const available = dc * team.weight * ship.zones[team.homeZone].crew.repairParty;
+      const index = remaining.reduce((best, value, i) => value > (best < 0 ? 0 : remaining[best]) ? i : best, -1);
+      if (index >= 0 && available > 0) {
+        team.zone = queue[index].zone; team.task = queue[index].task; team.effort = Math.min(available, remaining[index]);
+        remaining[index] = Math.max(0, remaining[index] - team.effort);
+        ship._dcByZone[team.zone][team.task] += team.effort;
+      }
+    }
+    const staffed = queue.map((job, i) => ({...job, effort: job.effort - remaining[i]})).filter(job => job.effort > 1e-9);
+    const allocated = staffed.reduce((sum, job) => sum + job.effort, 0);
+    ship.damageControl = {capacity, demand, allocated, activeZones: new Set(staffed.map(a => a.zone)).size,
+      status: ship.crew.repairParties <= .05 ? '작업반 소진' : capacity < .08 ? '전력·작업반 부족' : demand > allocated * 1.05 ? '대응 과부하' : allocated > 0 ? '손상 통제 중' : '대기', allocations: staffed};
+    for (const job of repairs) {
+      const zone = 'magazine' + 'ABC'[job.ti], effort = ship._dcByZone[zone].repair, magazine = ship.turrets[job.ti].magazine, item = magazine.equipment[job.key];
+      if (effort <= 1e-9) { magazine.repairStatus = ship.crew.repairParties <= .05 ? 'blocked' : 'idle'; continue; }
+      magazine.repairStatus = 'working';
+      if (job.previousTarget !== job.key || job.previousStatus !== 'working') announce(ship, 'equipment_repair', zone, `${job.ti + 1}번 탄약고 ${equipmentLabels[job.key]} 응급 수리 시작`, {turretIndex: job.ti, equipment: job.key, phase: 'start'});
+      const duration = ship._equipmentRepairDuration[job.ti][job.key] || (18 + (1 - item.health) * 50);
+      item.repairProgress = clamp(item.repairProgress + effort / duration);
+      if (item.repairProgress >= 1) {
+        item.health = .94; item.fault = null; item.repairProgress = 0; magazine.repairTarget = null; magazine.repairStatus = 'idle';
+        ship._equipmentCooldown[job.ti][job.key] = now + 75;
+        announce(ship, 'equipment_repair', zone, `${job.ti + 1}번 탄약고 ${equipmentLabels[job.key]} 기능 복구`, {turretIndex: job.ti, equipment: job.key, phase: 'complete', health: item.health});
       }
     }
   }
@@ -2354,10 +2471,16 @@ function createNavalDuel(options = {}) {
     if (cascadeDamage && !magazine.flooded) magazine.heat = clamp(magazine.heat + .0015 * Math.pow(clamp((magazine.heat - .65) / .35), 2) * surroundingFire * (1 - .65 * magazine.floodProgress));
     if (magazine.heat > .59 && !magazine.floodingActive) {
       magazine.floodingActive = true;
+      if (crewVitalDamage) {
+        const cause = ship._magazineThreatCauses[ti] || ship._vitalCauses['flash' + ti] || {};
+        ship._magazineSafetyCauses[ti] = {time: now, causeTime: Number.isFinite(cause.time) ? cause.time : now, zone: 'magazine' + letter, source: cause.source || null, shotId: cause.shotId || null, mode: 'system', label: '탄약고 긴급 주수로 사격 중지'};
+      }
       announce(ship, 'magazine_warning', 'magazine' + letter, `${ti + 1}번 탄약고 과열 · 긴급 주수 시작`, {turretIndex: ti, phase: 'flooding-start', heat: magazine.heat});
     }
     if (magazine.floodingActive) {
-      const pump = equipmentEffect(magazine, 'floodPump'), delivery = power * (1 - .85 * ship.flooding) * pump * (.65 + .35 * node.health);
+      const pump = equipmentEffect(magazine, 'floodPump');
+      let delivery = power * (1 - .85 * ship.flooding) * pump * (.65 + .35 * node.health);
+      if (crewVitalDamage) delivery *= node.equipment.pump * clamp(ship._dcByZone['magazine' + letter].safety / .35);
       const previousProgress = magazine.floodProgress;
       // A game-time operation spanning several salvos lets delivered water,
       // degraded power and an interrupted repair compete with rising heat.
@@ -2547,19 +2670,215 @@ function createNavalDuel(options = {}) {
     trace.intersections.sort((a, b) => a.near - b.near || a.system.localeCompare(b.system));
     return trace;
   }
+  function updateCrewSummary(ship) {
+    ship.crew.operators = clamp(zoneIds.reduce((sum, zone) => sum + crewWeights[zone] * ship.zones[zone].crew.operators, 0));
+    ship.crew.repairParties = clamp(zoneIds.reduce((sum, zone) => sum + repairWeights[zone] * ship.zones[zone].crew.repairParty, 0));
+  }
+  function crewVolumes(ship) {
+    const beam = specs[ship.id].beam * .34, length = specs[ship.id].length;
+    const boxes = [
+      ['engine', [-22, -1.65, -5.2], [-8, 2.25, 5.2]], ['boiler', [-8, -1.65, -5.2], [7, 2.25, 5.2]],
+      ['bridge', [4, 5, -3], [17, 15, 3]], ['bow', [40, -1.2, -beam], [length * .47, 2.8, beam]],
+      ['stern', [-length * .47, -1.2, -beam], [-38, 2.8, beam]],
+      ['hull', [-22, -.8, -beam], [36, 2.8, beam]]
+    ];
+    for (let ti = 0; ti < 3; ti++) {
+      const x = specs[ship.id].turrets[ti], letter = 'ABC'[ti];
+      boxes.push(['magazine' + letter, [x - 4.2, -1.65, -4.7], [x + 4.2, 2.4, 4.7]]);
+      boxes.push(['turret' + letter, [x - 4.8, 4.2, -4.4], [x + 4.8, 9.8, 4.4]]);
+    }
+    return boxes;
+  }
+  function traceCrewPath(ship, shot, vital) {
+    const trace = {version: 1, burstPoint: vital.burstPoint.slice(), intersections: [], losses: [], catastrophic: null};
+    if (!shot.penetrated || vital.path.length <= 0 || ship.sunk || ship.structuralFailure) return trace;
+    const start = vital.entryPoint, direction = vital.direction, length = vital.path.length, boxes = crewVolumes(ship);
+    const burstIsInside = !vital.stopped && boxes.some(([, min, max]) => vital.burstPoint.every((v, i) => v >= min[i] && v <= max[i]));
+    for (const [zone, min, max] of boxes) {
+      let near = 0, far = length;
+      for (let axis = 0; axis < 3; axis++) {
+        if (Math.abs(direction[axis]) < 1e-10) { if (start[axis] < min[axis] || start[axis] > max[axis]) { far = -1; break; } continue; }
+        let a = (min[axis] - start[axis]) / direction[axis], b = (max[axis] - start[axis]) / direction[axis];
+        if (a > b) [a, b] = [b, a]; near = Math.max(near, a); far = Math.min(far, b); if (near > far) break;
+      }
+      const crossed = near <= far && far >= 0 && near <= length && far - near > 1e-6;
+      const closest = vital.burstPoint.map((v, i) => clamp(v, min[i], max[i]));
+      const distance = Math.hypot(...closest.map((v, i) => v - vital.burstPoint[i]));
+      const burstInside = burstIsInside && distance < 1e-9;
+      // A limited fragment cloud stays behind intact deck boundaries. Adjacent
+      // rooms receive attenuated fragments, never an unbounded cone from entry.
+      const deckBlocked = vital.burstPoint[1] < 3.2 && min[1] >= 4.2 || vital.burstPoint[1] >= 4.2 && max[1] < 3.2;
+      const fragments = burstIsInside && !deckBlocked && distance <= 2.6;
+      if (!crossed && !fragments) continue;
+      // The generic hull crew occupy passageways, not machinery/rack volumes.
+      // Suppress that overlap rather than counting two full groups in one room.
+      if (zone === 'hull' && boxes.some(([z, lo, hi]) => z !== 'hull' && z !== 'bridge' && !z.startsWith('turret') && closest.every((v, i) => v >= lo[i] && v <= hi[i]))) continue;
+      const barrier = burstInside || crossed ? 1 : .18 + .42 * (1 - ship.zones[zone].structure);
+      const energyAt = vital.energy.residual * (crossed ? clamp(1 - Math.max(0, near) / Math.max(.01, vital.energy.depth * 1.3), .2, 1) : clamp(1 - distance / 2.6) * barrier);
+      if (energyAt <= .035) continue;
+      trace.intersections.push({zone, near: crossed ? near : null, far: crossed ? far : null, burstInside, distance, mode: crossed ? 'path' : 'fragment', energyAt});
+    }
+    trace.intersections.sort((a, b) => (a.near == null ? length + a.distance : a.near) - (b.near == null ? length + b.distance : b.near) || a.zone.localeCompare(b.zone));
+    return trace;
+  }
+  function recordOperationalFailure(ship, zone, mode, label, cause = {}) {
+    const key = zone + ':' + mode;
+    if (ship._crewFailures[key]) return;
+    const record = {time: now, causeTime: Number.isFinite(cause.time) ? cause.time : now, zone, shotId: cause.shotId || null, source: cause.source || null, mode, label};
+    ship._crewFailures[key] = record;
+    if (!ship.defeated) ship.operationalFailure = record;
+    announce(ship, 'operational_failure', zone, label, record);
+  }
+  function defeatOperationCause(ship) {
+    const crewCause = zone => ({...(ship.zones[zone].crew.lastCause || {}), zone, mode: 'crew'});
+    const systemCause = (system, zone) => ({...(ship._vitalCauses[system] || {}), system, zone, mode: 'system'});
+    const weakest = entries => entries.sort((a, b) => a.value - b.value || a.zone.localeCompare(b.zone))[0].cause;
+    let propulsion = weakest([
+      {value: ship.machinery.turbines, zone: 'engine', cause: systemCause('turbines', 'engine')},
+      {value: ship.machinery.steam, zone: 'boiler', cause: systemCause('steam', 'boiler')},
+      {value: ship.zones.engine.crew.operators, zone: 'engine', cause: crewCause('engine')},
+      {value: ship.zones.boiler.crew.operators, zone: 'boiler', cause: crewCause('boiler')}
+    ]);
+    const propulsionCap = ship.machinery.turbines * ship.machinery.steam * Math.min(ship.zones.engine.crew.operators, ship.zones.boiler.crew.operators);
+    if (ship.engine < propulsionCap - .001 && propulsionCap > .1) propulsion = {time: now, zone: 'engine', source: null, shotId: null, mode: 'system', label: '기관 구획 화재·침수로 추진 기능 상실'};
+    const powerCause = () => weakest([
+      {value: ship.power.bus, zone: 'boiler', cause: systemCause('bus', 'boiler')},
+      {value: (ship.power.generators[0] + ship.power.generators[1]) * .5, zone: 'engine', cause: systemCause(ship.power.generators[0] <= ship.power.generators[1] ? 'generator0' : 'generator1', 'engine')},
+      {value: .18 + .82 * ship.zones.engine.crew.operators, zone: 'engine', cause: crewCause('engine')},
+      {value: .18 + .82 * ship.zones.boiler.crew.operators, zone: 'boiler', cause: crewCause('boiler')}
+    ]);
+    const feedCauses = () => {
+      if (ship.power.output <= .16) return [powerCause()];
+      return ship.turrets.map((turret, ti) => {
+        const magazine = 'magazine' + 'ABC'[ti], zone = 'turret' + 'ABC'[ti];
+        if (turret.magazine.detonated) return systemCause(magazine, magazine);
+        if (turret.magazine.flooded) return ship._magazineSafetyCauses[ti] || {zone: magazine, mode: 'system', label: '탄약고 긴급 주수로 사격 중지'};
+        if (ship.zones[magazine].crew.operators <= .12) return crewCause(magazine);
+        if (ship.zones[zone].crew.operators <= .12) return crewCause(zone);
+        if (turret.feed.hoist <= .16) return systemCause('hoist' + ti, magazine);
+        if (turret.feed.drive <= .16) return systemCause('drive' + ti, magazine);
+        const cause = turret.feed.lastCause || ship._turretCauses[ti] || powerCause();
+        return {...cause, mode: cause.mode === 'crew' ? 'crew' : 'system'};
+      });
+    };
+    const trigger = ship._noGunsTime >= 20 ? 'no-guns' : ship.supplyRate < .28 ? 'propulsion-and-feed' : 'propulsion-and-control';
+    const controlCause = ship.zones.bridge.crew.operators <= ship.fireControl + 1e-9 ? crewCause('bridge') : {...(ship._fireControlCause || {}), zone: 'bridge', mode: 'system'};
+    let contributingCauses = trigger === 'no-guns' ? feedCauses() : [propulsion, ...(trigger === 'propulsion-and-feed' ? feedCauses() : [controlCause])];
+    const seen = new Set();
+    contributingCauses = contributingCauses.filter(cause => {
+      const key = [cause.zone, cause.system || '', cause.shotId || '', cause.mode].join(':');
+      if (seen.has(key)) return false; seen.add(key); return true;
+    }).map(cause => ({time: Number.isFinite(cause.time) ? cause.time : now, zone: cause.zone, system: cause.system || null, shotId: cause.shotId || null, source: cause.source || null, mode: cause.mode, label: cause.label || zoneLabels[cause.zone] + ' 운용 기능 상실'}));
+    const primary = contributingCauses[0], label = trigger === 'no-guns' ? '무장 운용 기능 상실' : trigger === 'propulsion-and-feed' ? '추진·급탄 기능 동시 상실' : '추진·사격 통제 기능 동시 상실';
+    return {...primary, time: primary.time, causeTime: primary.time, defeatTime: now, trigger, mode: contributingCauses.every(c => c.mode === 'crew') ? 'crew' : 'system', label, contributingCauses};
+  }
+  function updateCrewAvailability(ship) {
+    if (!crewVitalDamage) return;
+    updateCrewSummary(ship);
+    ship.engine = Math.min(ship.engine, ship.machinery.turbines * ship.machinery.steam * Math.min(ship.zones.engine.crew.operators, ship.zones.boiler.crew.operators));
+    ship.fireControl = Math.min(ship.fireControl, ship.zones.bridge.crew.operators);
+    if (!ship.sunk) {
+      for (const zone of ['engine', 'boiler', 'bridge', 'turretA', 'turretB', 'turretC', 'magazineA', 'magazineB', 'magazineC']) {
+        const crew = ship.zones[zone].crew;
+        if (crew.operators <= .12) recordOperationalFailure(ship, zone, 'crew', `${zoneLabels[zone]} 운용 인력 소진`, crew.lastCause || {});
+      }
+      if (ship.machinery.turbines <= .16 || ship.machinery.steam <= .16) {
+        const zone = ship.machinery.steam <= .16 ? 'boiler' : 'engine';
+        recordOperationalFailure(ship, zone, 'system', `${zoneLabels[zone]} 설비 기능 상실`, ship._vitalCauses[zone === 'boiler' ? 'steam' : 'turbines'] || {});
+      }
+      if (ship.power.output <= .16) recordOperationalFailure(ship, ship.power.lastCause?.zone || 'boiler', 'system', '주전원 상실 · 전동 급탄 중단', ship.power.lastCause || {});
+    }
+  }
+  function applyCrewPath(ship, shot, trace) {
+    if (!shot.penetrated || !trace.intersections.length || ship.sunk || ship.structuralFailure) return;
+    for (const hit of trace.intersections) {
+      const node = ship.zones[hit.zone], before = node.crew.operators, structureBefore = node.structure;
+      const amplification = 1 + 1.8 * Math.pow(1 - structureBefore, 2);
+      const draw = channel => criticalDraw(shot, 'crew-vital-v1:' + hit.zone + ':' + channel);
+      const force = hit.energyAt * amplification;
+      const operatorLoss = hit.burstInside ? (.38 + .30 * force + .10 * draw('operators')) : hit.mode === 'fragment' ? .26 * force : .055 + .11 * force;
+      node.crew.operators = clamp(before - operatorLoss);
+      const cause = {time: shot.time, zone: hit.zone, shotId: shot.shotId, source: shot.ship, mode: 'crew', label: '내부 관통·파편으로 운용 인력 손실'};
+      if (node.crew.operators < before) node.crew.lastCause = cause;
+      const partyLoss = hit.burstInside ? .48 + .30 * force + .08 * draw('parties') : hit.mode === 'fragment' ? .28 * force : .08 + .12 * force;
+      const repairLosses = [];
+      for (const team of ship._repairTeams.filter(team => team.zone === hit.zone)) {
+        const cohort = ship.zones[team.homeZone].crew, partyBefore = cohort.repairParty;
+        cohort.repairParty = clamp(partyBefore - partyLoss);
+        if (cohort.repairParty < partyBefore) repairLosses.push({homeZone: team.homeZone, before: partyBefore, after: cohort.repairParty, deployed: team.homeZone !== hit.zone});
+      }
+      const equipmentLoss = hit.burstInside ? .32 + .30 * force : .12 * force;
+      const equipment = {pump: node.equipment.pump, suppression: node.equipment.suppression};
+      node.equipment.pump = clamp(node.equipment.pump - equipmentLoss); node.equipment.suppression = clamp(node.equipment.suppression - equipmentLoss);
+      const structuralZone = ['engine', 'boiler', 'hull', 'magazineA', 'magazineB', 'magazineC'].includes(hit.zone);
+      const structureLoss = (hit.burstInside ? .18 + .14 * hit.energyAt + .04 * draw('structure') : hit.mode === 'fragment' ? .05 * hit.energyAt : .06 + .07 * hit.energyAt) * (1 + .6 * (1 - structureBefore));
+      node.structure = clamp(structureBefore - structureLoss);
+      // Weak framing adds local damage only where the finite internal path
+      // reaches it. A late superficial/blocked impact cannot borrow this boost.
+      node.health = clamp(node.health - .06 * hit.energyAt * (amplification - 1));
+      const extraIntegrityLoss = structuralZone && structureBefore < .7 && hit.mode === 'path' && hit.energyAt > .12 ? Math.min(ship.integrity, .075, .045 * hit.energyAt * (amplification - 1) * (hit.burstInside ? 1 : .35)) : 0;
+      const beforeStructuralDamage = extraIntegrityLoss > 0 ? failureState(ship) : null;
+      ship.integrity = clamp(ship.integrity - extraIntegrityLoss);
+      if (beforeStructuralDamage) recordFailureCrossings(ship, beforeStructuralDamage, {cause: 'hull-failure', causeMode: 'weakened-compartment', causeZone: hit.zone, source: shot.ship, shotId: shot.shotId});
+      if (hit.burstInside) node.fire = clamp(node.fire + .10 * force);
+      const loss = {zone: hit.zone, operatorsBefore: before, operatorsAfter: node.crew.operators, repairLosses, equipment: {pump: equipment.pump - node.equipment.pump, suppression: equipment.suppression - node.equipment.suppression}, structureBefore, structureAfter: node.structure, amplification, extraIntegrityLoss};
+      trace.losses.push(loss);
+      if (before - node.crew.operators > .04) announce(ship, 'crew_loss', hit.zone, `${zoneLabels[hit.zone]} 운용 인력 손실`, {source: shot.ship, shotId: shot.shotId, remaining: node.crew.operators, mode: hit.mode});
+      if (repairLosses.length) announce(ship, 'repair_party_loss', hit.zone, `${zoneLabels[hit.zone]} 작업반 손실`, {source: shot.ship, shotId: shot.shotId, cohorts: repairLosses.map(p => p.homeZone)});
+      if (structureBefore > .4 && node.structure <= .4) announce(ship, 'structural_damage', hit.zone, `${zoneLabels[hit.zone]} 국소 구조 약화`, {source: shot.ship, shotId: shot.shotId, remaining: node.structure});
+      // Two independently located longitudinal supports must already be badly
+      // damaged and a new inner burst must reach them. No per-hit death roll.
+      if (structuralZone && hit.burstInside && shot.vital.burstPoint[1] <= .5) {
+        const supports = ship._structuralSupports[hit.zone], supportsBefore = supports.slice();
+        for (let side = 0; side < 2; side++) {
+          const distance = Math.hypot(shot.vital.burstPoint[1] + 1.0, shot.vital.burstPoint[2] - (side ? 2.6 : -2.6));
+          if (distance <= 3.6) supports[side] = clamp(supports[side] - structureLoss * clamp(1.5 - distance / 3.6, .3, 1.5));
+        }
+        if (structureBefore <= .22 && node.structure <= .08 && supports.every(v => v <= .10) && hit.energyAt > .40) {
+          ship.structuralFailure = true;
+          trace.catastrophic = {zone: hit.zone, point: shot.vital.burstPoint.slice(), supportsBefore, supportsAfter: supports.slice()};
+          ship.criticalCause = {...cause, mode: 'localized-collapse', label: `${zoneLabels[hit.zone]} 종통재 붕괴`};
+          recordFailureCrossings(ship, {integrity: ship.integrity, flooding: ship.flooding, listDeg: ship.listDeg, structuralFailure: false}, {cause: 'structural', causeMode: 'localized-collapse', causeZone: hit.zone, source: shot.ship, shotId: shot.shotId});
+          announce(ship, 'structural_failure', hit.zone, `${zoneLabels[hit.zone]} 손상 구획 구조 붕괴`, {source: shot.ship, shotId: shot.shotId, point: shot.vital.burstPoint.slice(), causeMode: 'localized-collapse'});
+        }
+      }
+    }
+    updateCrewSummary(ship);
+  }
+  function reconcileDamageControl(ship) {
+    const capacityBase = ship.sunk ? 0 : specs[ship.id].dc * (.18 + .82 * ship.power.output) * (.85 + .15 * ship.fireControl) * (1 - .6 * ship.flooding);
+    const capacity = capacityBase * ship.crew.repairParties;
+    for (const zone of zoneIds) ship._dcByZone[zone] = {fire: 0, flood: 0, cooling: 0, repair: 0, safety: 0};
+    for (const team of ship._repairTeams) {
+      team.effort = Math.min(team.effort || 0, capacityBase * team.weight * ship.zones[team.homeZone].crew.repairParty);
+      if (team.task) ship._dcByZone[team.zone][team.task] += team.effort;
+    }
+    const allocations = [];
+    for (const zone of zoneIds) for (const [task, effort] of Object.entries(ship._dcByZone[zone])) if (effort > 1e-9) allocations.push({zone, task, effort});
+    const allocated = allocations.reduce((sum, task) => sum + task.effort, 0), demand = ship.damageControl.demand;
+    ship.damageControl = {capacity, demand, allocated, activeZones: new Set(allocations.map(a => a.zone)).size,
+      status: ship.sunk ? '침몰' : ship.crew.repairParties <= .05 ? '작업반 소진' : capacity < .08 ? '전력·작업반 부족' : demand > allocated * 1.05 ? '대응 과부하' : allocated > 0 ? '손상 통제 중' : '대기', allocations};
+  }
   function updateVitalAvailability(ship) {
     const power = ship.power;
     power.output = clamp((power.generators[0] + power.generators[1]) * .5 * power.bus);
+    if (crewVitalDamage) power.output *= .18 + .82 * Math.min(ship.zones.engine.crew.operators, ship.zones.boiler.crew.operators);
     power.status = power.output <= .16 ? '주전원 상실' : power.output < .35 ? '주전원 위기' : power.output < .7 ? '전력 저하' : '정상';
     ship.engine = Math.min(ship.engine, ship.machinery.turbines * ship.machinery.steam);
-    for (const turret of ship.turrets) {
+    for (let ti = 0; ti < ship.turrets.length; ti++) {
+      const turret = ship.turrets[ti];
       const f = turret.feed;
+      const operators = crewVitalDamage ? Math.min(ship.zones['turret' + 'ABC'[ti]].crew.operators, ship.zones['magazine' + 'ABC'[ti]].crew.operators) : 1;
       f.available = !ship.sunk && !turret.magazine.flooded && !turret.magazine.detonated && power.output > .16 && f.hoist > .16 && f.drive > .16;
+      if (crewVitalDamage && operators <= .12) f.available = false;
       f.supplyRate = f.available ? clamp((.2 + .8 * power.output) * (.2 + .8 * f.hoist) * (.35 + .65 * f.drive), .08, 1) : 0;
+      if (crewVitalDamage && f.available) f.supplyRate *= .18 + .82 * operators;
       f.status = turret.magazine.detonated ? '탄약고 유폭' : turret.magazine.flooded ? '주수로 급탄 중단' : ship.sunk ? '침몰' : power.output <= .16 ? '주전원 단절' : f.hoist <= .16 ? '급탄 승강기 파괴' : f.drive <= .16 ? '급탄 구동부 파괴' : f.flashContainment < .35 ? '방염 격리 손상' : f.supplyRate < .75 ? '전동 급탄 감속' : '정상';
+      if (crewVitalDamage && !ship.sunk && !turret.magazine.detonated && !turret.magazine.flooded && operators <= .12) f.status = '운용 인력 소진';
     }
     const workingFeeds = ship.turrets.filter(t => t.feed.available && t.health > .075 && t.barrels.some(b => b > .12));
     ship.supplyRate = workingFeeds.length ? workingFeeds.reduce((sum, turret) => sum + turret.feed.supplyRate, 0) / workingFeeds.length : 0;
+    if (crewVitalDamage) { updateCrewAvailability(ship); reconcileDamageControl(ship); }
     if (!ship.sunk && !ship.defeated) {
       if (power.output <= .16) ship.status = '주전원 상실 · 급탄 중단';
       else if (ship.turrets.every(t => !t.feed.available)) ship.status = '전 포탑 급탄 중단';
@@ -2571,6 +2890,7 @@ function createNavalDuel(options = {}) {
     const beforePower = ship.power.output, beforeSupply = ship.supplyRate, previousFeeds = ship.turrets.map(t => t.feed.available), flashBefore = ship.turrets.map(t => t.feed.flashContainment);
     const labels = {turbines: '기관·축계', steam: '주증기 계통', bus: '주분전반', generator0: '좌현 발전 계통', generator1: '우현 발전 계통'};
     function damage(system, zone, object, key, amount) {
+      if (crewVitalDamage) amount *= shot.crewDamage?.losses.find(loss => loss.zone === zone)?.amplification || 1;
       const before = object[key], after = clamp(before - amount); object[key] = after;
       if (after >= before) return;
       const label = labels[system] || (system.startsWith('flash') ? '방염 격리' : system.startsWith('drive') ? '급탄 구동부' : '급탄 승강기');
@@ -2578,6 +2898,7 @@ function createNavalDuel(options = {}) {
       trace.systems.push({system, zone, before, after, loss: before - after, critical});
       ship.zones[zone].health = Math.min(ship.zones[zone].health, after);
       const cause = {time: shot.time, source: shot.ship, shotId: shot.shotId, system, zone, label: label + (critical ? ' 파괴' : ' 관통 손상'), mode: 'internal-penetration'};
+      if (crewVitalDamage) ship._vitalCauses[system] = cause;
       if (system === 'bus' || system.startsWith('generator')) ship.power.lastCause = cause;
       if (system.startsWith('hoist') || system.startsWith('drive') || system.startsWith('flash')) ship.turrets[Number(system.slice(-1))].feed.lastCause = cause;
       if (critical) ship.criticalCause = cause;
@@ -2782,7 +3103,9 @@ function createNavalDuel(options = {}) {
       if (!vitalPathDamage) target.engine = clamp(target.engine - severity * (shot.penetrated ? .63 : .08));
       shot.outcome = shot.penetrated ? 'machinery' : 'blocked';
     } else if (zone === 'bridge') {
+      const previousControl = target.fireControl;
       target.fireControl = clamp(target.fireControl - severity * (shot.penetrated ? 1.1 : .65));
+      if (crewVitalDamage && target.fireControl < previousControl) target._fireControlCause = {time: shot.time, zone, shotId: shot.shotId, source: shot.ship, mode: 'system', label: '함교·사격 통제 장비 피탄 손상'};
       target._learning *= .9;
       shot.outcome = 'fire-control';
     } else if (zone === 'stern' && shot.penetrated) {
@@ -2790,17 +3113,20 @@ function createNavalDuel(options = {}) {
       shot.outcome = 'steering';
     } else if (zone.startsWith('turret')) {
       const ti = 'ABC'.indexOf(zone.slice(-1)), turret = target.turrets[ti];
+      if (crewVitalDamage && (turret.health > 0 || shot.penetrated && turret.barrels.some(value => value > 0))) target._turretCauses[ti] = {time: shot.time, zone, shotId: shot.shotId, source: shot.ship, mode: 'system', label: '포탑·포신 피탄 손상'};
       turret.health = clamp(turret.health - severity * (shot.penetrated ? .9 : .25));
       if (shot.penetrated) {
         const bi = Math.min(2, Math.floor(shot.damageRoll * 3));
         turret.barrels[bi] = clamp(turret.barrels[bi] - severity * 2.4);
         target.zones['magazine' + 'ABC'[ti]].fire = clamp(target.zones['magazine' + 'ABC'[ti]].fire + severity * .08);
         target.turrets[ti].magazine.heat = clamp(target.turrets[ti].magazine.heat + severity * .14);
+        if (crewVitalDamage) target._magazineThreatCauses[ti] = target._turretCauses[ti];
       }
       shot.outcome = shot.penetrated ? 'turret-damage' : 'blocked';
     } else if (zone.startsWith('magazine') && shot.penetrated) {
       const ti = 'ABC'.indexOf(zone.slice(-1));
       target.turrets[ti].magazine.heat = clamp(target.turrets[ti].magazine.heat + severity * .28);
+      if (crewVitalDamage) target._magazineThreatCauses[ti] = {time: shot.time, zone, shotId: shot.shotId, source: shot.ship, mode: 'system', label: '탄약고 구획 피탄·가열'};
       // A hit threatens the protected ammunition system; detonation is a later
       // heat/escalation event. It is never an unconditional instant hit roll.
       node.fire = clamp(node.fire + severity * .22);
@@ -2816,6 +3142,10 @@ function createNavalDuel(options = {}) {
         if (shot.vital.stopped || shot.critical.waterProtected) {
           shot.critical.protectedPenetration = false; shot.critical.eligible = false;
           shot.critical.detonated = false; shot.critical.catastrophicBreakup = false;
+        }
+        if (crewVitalDamage) {
+          shot.crewDamage = traceCrewPath(target, shot, shot.vital);
+          applyCrewPath(target, shot, shot.crewDamage);
         }
         applyVitalPath(target, shot, shot.vital);
         if (shot.vital.flash?.detonated && !shot.critical.detonated) {
@@ -2912,6 +3242,20 @@ function createNavalDuel(options = {}) {
       const mode = direct?.causeMode || 'heat-runaway';
       const label = mode === 'flash-propagation' ? '방염 격리 파괴 · 탄약고 섬광 역류' : mode === 'direct-penetration' ? '탄약고 직접 관통 · 장약 발화' : mode === 'chain-propagation' ? '인접 탄약고 연쇄 유폭' : '화재·과열로 탄약고 유폭';
       ship.criticalCause = {time: now, source: direct?.source || null, shotId: direct?.shotId || null, system: 'magazine' + letter, zone: 'magazine' + letter, label, mode};
+      if (crewVitalDamage) ship._vitalCauses['magazine' + letter] = ship.criticalCause;
+    }
+    if (crewVitalDamage) {
+      // A real ammunition detonation destroys the occupied magazine and its
+      // turret. It does not apply an arbitrary casualty percentage ship-wide.
+      const blastZones = ['magazine' + letter, 'turret' + letter];
+      for (const zone of blastZones) {
+        const local = ship.zones[zone], before = local.crew.operators;
+        local.crew.operators = 0; local.structure = 0; local.equipment.pump = 0; local.equipment.suppression = 0;
+        local.crew.lastCause = {...ship.criticalCause, zone, mode: 'crew', label: '탄약고 내부 폭발로 운용 인력 소진'};
+        for (const team of ship._repairTeams.filter(team => team.zone === zone)) ship.zones[team.homeZone].crew.repairParty = 0;
+        if (before > 0) announce(ship, 'crew_loss', zone, `${zoneLabels[zone]} 내부 폭발 · 운용 인력 소진`, {source: direct?.source || null, shotId: direct?.shotId || null, remaining: 0, mode: 'internal-explosion'});
+      }
+      updateVitalAvailability(ship);
     }
     if (fromChain) {
       magazine.stateLabel = '탄약고 연쇄 유폭'; magazine.repairTarget = null; magazine.repairStatus = 'off'; magazine.floodingActive = false;
@@ -2939,7 +3283,23 @@ function createNavalDuel(options = {}) {
     for (const zone of zoneIds) {
       const node = ship.zones[zone];
       const growth = node.fire * .0015 * (1 - node.fire);
-      if (!legacyDamage && zone.startsWith('magazine')) {
+      if (crewVitalDamage) {
+        const effort = ship._dcByZone[zone], powered = .05 + .95 * ship.power.output;
+        const ti = zone.startsWith('magazine') ? 'ABC'.indexOf(zone.slice(-1)) : -1;
+        const magazine = ti >= 0 ? ship.turrets[ti].magazine : null;
+        const suppression = node.equipment.suppression * powered * (magazine ? .12 + .88 * equipmentEffect(magazine, 'suppression') : 1);
+        const cooling = powered * (magazine ? .12 + .88 * equipmentEffect(magazine, 'cooling') : 1);
+        node.fire = clamp(node.fire + growth - .006 * effort.fire * suppression);
+        node.heat = clamp(node.heat + node.fire * .006 - .007 * effort.cooling * cooling * (magazine ? .5 : 1));
+        node.flooding = clamp(node.flooding + node.breach * .3 - .006 * effort.flood * node.equipment.pump * powered);
+        node.breach = Math.max(0, node.breach - .00012 * effort.flood);
+        // Only compartments with a recorded internal casualty cause can lose
+        // further operators to an uncontrolled severe fire; no cosmetic-hit
+        // or quiet tick can spontaneously remove a healthy cohort.
+        if (node.crew.lastCause && node.fire > .65 && node.heat > .7) {
+          node.crew.operators = clamp(node.crew.operators - .00045 * node.fire * node.heat);
+        }
+      } else if (!legacyDamage && zone.startsWith('magazine')) {
         const magazine = ship.turrets['ABC'.indexOf(zone.slice(-1))].magazine;
         node.fire = clamp(node.fire + growth - .0017 * dc * (.12 + .88 * equipmentEffect(magazine, 'suppression')));
         node.heat = clamp(node.heat + node.fire * .006 - .002 * dc * (.12 + .88 * equipmentEffect(magazine, 'cooling')));
@@ -2947,8 +3307,10 @@ function createNavalDuel(options = {}) {
         node.fire = clamp(node.fire + growth - .0017 * dc);
         node.heat = clamp(node.heat + node.fire * .006 - .002 * dc);
       }
-      node.flooding = clamp(node.flooding + node.breach * .3 - .0016 * dc);
-      node.breach = Math.max(0, node.breach - .000032 * dc);
+      if (!crewVitalDamage) {
+        node.flooding = clamp(node.flooding + node.breach * .3 - .0016 * dc);
+        node.breach = Math.max(0, node.breach - .000032 * dc);
+      }
       fires += node.fire; floods += node.flooding; breachTotal += node.breach;
     }
     ship.fire = clamp(fires / 2.4);
@@ -2963,7 +3325,7 @@ function createNavalDuel(options = {}) {
     const floodingBeforeMagazines = ship.flooding;
     const beforeMagazineWater = cascadeDamage ? failureState(ship) : null;
     for (let ti = 0; ti < 3; ti++) {
-      if (!legacyDamage) { advanceEquipmentMagazine(ship, ti, dc, power); continue; }
+      if (!legacyDamage) { advanceEquipmentMagazine(ship, ti, crewVitalDamage ? ship._dcByZone['magazine' + 'ABC'[ti]].cooling * 1.95 : dc, power); continue; }
       const letter = 'ABC'[ti], turret = ship.turrets[ti], magazine = turret.magazine, node = ship.zones['magazine' + letter];
       if (magazine.detonated) continue;
       if (magazine.flooded) { magazine.heat = Math.max(0, magazine.heat - .025); node.fire = Math.max(0, node.fire - .015); continue; }
@@ -2981,7 +3343,8 @@ function createNavalDuel(options = {}) {
     }
     if (cascadeDamage) { updateFiniteFlooding(ship); recordFailureCrossings(ship, beforeMagazineWater); }
     const beforeList = failureState(ship);
-    ship._imbalance *= 1 - .0013 * dc;
+    const balanceEffort = crewVitalDamage ? ship.damageControl.allocations.filter(a => a.task === 'flood').reduce((sum, a) => sum + a.effort, 0) : dc;
+    ship._imbalance *= 1 - .0013 * balanceEffort;
     ship.listDeg = clamp(ship._imbalance * (1 + ship.flooding * 15) + ship.flooding * ship.flooding * 17 * Math.sign(ship._imbalance || 1), -45, 45);
     const listWithoutMagazineFlooding = clamp(ship._imbalance * (1 + floodingBeforeMagazines * 15) + floodingBeforeMagazines * floodingBeforeMagazines * 17 * Math.sign(ship._imbalance || 1), -45, 45);
     const magazineCausedCapsize = ship._lastDetonation && ship._lastDetonation.causeTime === now && Math.abs(listWithoutMagazineFlooding) <= 32;
@@ -2989,9 +3352,11 @@ function createNavalDuel(options = {}) {
     ship.speedKnots = spec.speed * Math.pow(ship.engine, .62) * (1 - .73 * ship.flooding) * (.7 + .3 * ship.steering);
     recalcGuns(ship);
     ship._noGunsTime = ship.activeGuns === 0 ? ship._noGunsTime + 1 : 0;
+    if (crewVitalDamage) ship._operationCollapseSeconds = ship.engine < .07 && (ship.supplyRate < .28 || ship.fireControl < .15) ? ship._operationCollapseSeconds + 1 : 0;
     if (ship.flooding > .84 || Math.abs(ship.listDeg) > 32 || ship.integrity < .055 || (criticalDamage && ship.structuralFailure)) {
       ship.sunk = true; ship.defeated = true; ship.speedKnots = 0; ship.activeGuns = 0; ship.status = '침몰';
       if (vitalPathDamage) updateVitalAvailability(ship);
+      if (crewVitalDamage) ship.damageControl = {capacity: 0, demand: ship.damageControl.demand, allocated: 0, activeZones: 0, status: '침몰', allocations: []};
       if (!legacyDamage) for (const turret of ship.turrets) {
         const magazine = turret.magazine;
         magazine.repairTarget = null; magazine.repairStatus = 'off'; magazine.floodingActive = false;
@@ -3000,9 +3365,12 @@ function createNavalDuel(options = {}) {
       ship.sinking = sinkingRecord(ship);
       const {label: causeLabel, ...causeMetadata} = clone(ship.sinking);
       announce(ship, 'sunk', 'hull', '부력 상실 · 침몰', causeMetadata);
-    } else if (!ship.defeated && (ship._noGunsTime >= 20 || (ship.engine < .07 && ship.fireControl < .15 && ship.integrity < .3))) {
+    } else if (!ship.defeated && (ship._noGunsTime >= 20 || (ship.engine < .07 && ship.fireControl < .15 && ship.integrity < .3) || crewVitalDamage && ship._operationCollapseSeconds >= 12)) {
       ship.defeated = true; ship.status = '전투 불능';
-      announce(ship, 'disabled', 'hull', '전투 불능');
+      if (crewVitalDamage) {
+        ship.operationalFailure = defeatOperationCause(ship);
+        announce(ship, 'disabled', ship.operationalFailure.zone || 'hull', '설비·인력 손실로 전투 불능 · 부력 유지', {operationalFailure: clone(ship.operationalFailure)});
+      } else announce(ship, 'disabled', 'hull', '전투 불능');
     } else if (!ship.defeated) ship.status = vitalPathDamage && ship.power.output <= .16 ? '주전원 상실 · 급탄 중단' : vitalPathDamage && ship.turrets.every(t => !t.feed.available) ? '전 포탑 급탄 중단' : vitalPathDamage && ship.engine < .07 ? '기관 정지' : ship.flooding > .45 ? '침수 위험' : ship.fire > .32 ? '화재 진압 중' : ship.engine < .55 ? '기관 출력 저하' : ship.fireControl < .45 ? '사격 통제 저하' : '교전 중';
     syncMotionDamage(ship);
   }
@@ -4226,7 +4594,7 @@ function createDuelCompartments(T,built,id){
     const highRiskExperiment=root.dataset.experiment==='high-magazine',chainExperiment=root.dataset.experiment==='chain-magazine',directHitExperiment=root.dataset.experiment==='direct-hit'||chainExperiment,damagePathExperiment=root.dataset.experiment==='damage-path',trajectoryExperiment=root.dataset.experiment==='trajectories'||ballisticsExperiment;
     const directHitSeed=chainExperiment?20:63;
     function buildBattle(settings){return createNavalDuel({...settings,...(ballistics&&settings.ballisticsMode==='mesh-path'?{ballistics,ballisticSeaState:settings.ballisticSeaState||'moderate',ballisticOceanOffset:settings.ballisticOceanOffset||0,ballisticImpactMotion:!reduced}:{})});}
-    let config={seed:vitalHitsExperiment?8:ballisticsExperiment?841029996:damagePathExperiment?3280744387:directHitExperiment?directHitSeed:highRiskExperiment?3298610066:19440426,encounterMode:directFireExperiment?'set-range':'maximum',rangeKm:directFireExperiment?6:42,visibility:'clear',accuracyScale:ballisticsExperiment?1.3:highRiskExperiment?1.1:1,maneuverMode:'evasive',damageModel:vitalHitsExperiment?'vital-path':'critical',repairPolicy:'balanced',magazineRisk:highRiskExperiment?'high':'normal',magazinePropagation:chainExperiment?'chain':'isolated',ballisticsMode:ballisticsExperiment?'mesh-path':null,gunneryModel:directFireExperiment?'range-aware':null,ballisticSeaState:'moderate',ballisticOceanOffset:0},duel=buildBattle(config),snapshot=duel.sample(0),clock=0,playing=false,hasRun=false,speed=4,focus='whole',view='angle',cutaway=false,exteriorView=null,blastPreview=null,zone='engine',seaState='moderate',oceanOffset=0,battleNumber=0,lastSaved='',lastLog='',lastResult='',lastFrame=performance.now(),raf=0,dirty=true,cameraAnimation=null,trackedFleetBox=null,trackedFleetCenter=new T.Vector3();
+    let config={seed:vitalHitsExperiment?8:ballisticsExperiment?841029996:damagePathExperiment?3280744387:directHitExperiment?directHitSeed:highRiskExperiment?3298610066:19440426,encounterMode:directFireExperiment?'set-range':'maximum',rangeKm:directFireExperiment?6:42,visibility:'clear',accuracyScale:ballisticsExperiment?1.3:highRiskExperiment?1.1:1,maneuverMode:'evasive',damageModel:crewDamageExperiment?'crew-vital':vitalHitsExperiment?'vital-path':'critical',repairPolicy:'balanced',magazineRisk:highRiskExperiment?'high':'normal',magazinePropagation:chainExperiment?'chain':'isolated',ballisticsMode:ballisticsExperiment?'mesh-path':null,gunneryModel:directFireExperiment?'range-aware':null,ballisticSeaState:'moderate',ballisticOceanOffset:0},duel=buildBattle(config),snapshot=duel.sample(0),clock=0,playing=false,hasRun=false,speed=4,focus='whole',view='angle',cutaway=false,exteriorView=null,blastPreview=null,zone='engine',seaState='moderate',oceanOffset=0,battleNumber=0,lastSaved='',lastLog='',lastResult='',lastFrame=performance.now(),raf=0,dirty=true,cameraAnimation=null,trackedFleetBox=null,trackedFleetCenter=new T.Vector3();
     const seaInput=root.querySelector('select[data-sea]'),sampleVisual=createDuelRenderSampler(T,sea,()=>duel,()=>seaState,()=>oceanOffset,()=>({impactMotion:!reduced}));
     const trajectoryInput=root.querySelector('[data-trajectories]'),trajectoryLegend=root.querySelector('[data-trajectory-legend]'),trajectoryTheme={};let trajectoryMode=trajectoryExperiment;
     trajectoryInput.checked=trajectoryMode;
@@ -4267,6 +4635,14 @@ function createDuelCompartments(T,built,id){
         root.querySelector('[data-status="'+id+'"]').appendChild(vital);
         const cause=document.createElement('div');cause.className='text-small';cause.setAttribute('data-vital-cause','');cause.hidden=true;root.querySelector('[data-status="'+id+'"]').appendChild(cause);
       }
+      if(crewDamageExperiment){
+        const crew=document.createElement('div');crew.className='viz-row text-small tabular-nums';crew.setAttribute('data-crew-summary','');
+        for(const key of ['operators','parties','response']){const label=document.createElement('span');label.setAttribute('data-crew-'+key,'');crew.appendChild(label);}
+        crew.querySelector('[data-crew-operators]').setAttribute('data-tooltip','운용 인력의 잔존 역량 · 실제 사상자 수를 뜻하지 않습니다');
+        crew.querySelector('[data-crew-parties]').setAttribute('data-tooltip','작업반의 잔존 역량 · 인력 손실은 전투 중 복구되지 않습니다');
+        crew.querySelector('[data-crew-response]').setAttribute('data-tooltip','한정된 작업반을 소화·배수·냉각·설비 수리에 나눠 투입합니다');
+        root.querySelector('[data-status="'+id+'"]').appendChild(crew);
+      }
     }
     function applyPose(state){
       for(const [id,built] of Object.entries(models)){
@@ -4288,7 +4664,7 @@ function createDuelCompartments(T,built,id){
       scene.fog=cutaway?null:new T.Fog(fogColor,night?250:haze?180:620,night?1000:haze?800:1800);skyMaterial.uniforms.horizon.value.setHex(fogColor);skyMaterial.uniforms.zenith.value.setHex(night?0x101f2c:0x567782);key.intensity=night?.75:2;fill.intensity=night?.35:.9;
     }
     function setSection(){for(const id of ['yamato','iowa'])compartments[id].setVisible(cutaway&&focus===id);root.querySelector('[data-sections]').hidden=!cutaway;root.querySelector('[data-return]').hidden=!cutaway||!!blastPreview;root.querySelector('[data-section-name]').textContent=(focus==='iowa'?'아이오와':'야마토')+' 피해 구획';root.querySelector('[data-scale]').textContent=blastPreview?(blastPreview.propagation==='chain'?'연쇄 유폭 연출 미리보기':'유폭 연출 미리보기'):cutaway?'내부 배치 개념도':'표시 거리·비행 시간 축약';root.querySelector('.duel-status').hidden=!!blastPreview;root.querySelector('.duel-log').hidden=!!blastPreview;root.querySelector('[aria-label="교전 거리"]').hidden=!!blastPreview;focusInput.disabled=!!blastPreview;cutawayInput.disabled=!!blastPreview;propagationInput.disabled=!!blastPreview;blastButton.textContent=blastPreview?'교전으로 돌아가기':'유폭 연출 보기';setEnvironment();}
-    const sectionZones=['engine','boiler','magazineA','magazineB','magazineC'],damageEventTypes=new Set(['vital_hit','power_loss','feed_loss','impact','fire','flood','heat_spread','equipment_fault','equipment_repair','magazine_warning','magazine','magazine_propagation','sunk']);
+    const sectionZones=['engine','boiler','magazineA','magazineB','magazineC'],damageEventTypes=new Set(['crew_loss','repair_party_loss','structural_damage','operational_failure','structural_failure','disabled','vital_hit','power_loss','feed_loss','impact','fire','flood','heat_spread','equipment_fault','equipment_repair','magazine_warning','magazine','magazine_propagation','sunk']);
     const eventShip=e=>e.type==='salvo'&&['yamato','iowa'].includes(e.ship)?e.ship:['yamato','iowa'].includes(e.target)?e.target:['yamato','iowa'].includes(e.ship)?e.ship:null;
     const eventLabel=e=>e.type==='sunk'&&e.causeLabel?(eventShip(e)==='iowa'?'아이오와':'야마토')+' · '+e.causeLabel:e.label;
     function eventTime(time){const ticks=Math.floor(Math.max(0,time)*100+1e-6);return Math.floor(ticks/6000).toString().padStart(2,'0')+':'+(Math.floor(ticks/100)%60).toString().padStart(2,'0')+'.'+(ticks%100).toString().padStart(2,'0');}
@@ -4322,13 +4698,14 @@ function createDuelCompartments(T,built,id){
     function updateZone(){
       const id=focus==='iowa'?'iowa':'yamato',s=snapshot.ships[id],z=s.zones?.[zone]||{},names={engine:'기관실',boiler:'보일러실',magazineA:'1번 탄약고',magazineB:'2번 탄약고',magazineC:'3번 탄약고'},mi='ABC'.indexOf(zone.slice(-1)),m=mi>=0?s.turrets[mi]?.magazine:null;
       const health=z.health??1,fire=z.fire??m?.heat??0,flood=z.flooding??s.flooding;
-      const detail=root.querySelector('[data-zone-detail]'),detailText=names[zone]+' · 구획 건전성 '+pct(health)+'% · 화재 '+pct(fire)+'% · 침수 '+pct(flood)+'%'+(m?' · 장약 과열 '+pct(m.heat)+'%':'')+(m?.detonated?' · 유폭':m?.flooded?' · 탄약고 주수 완료':'');detail.setAttribute('aria-live',playing?'off':'polite');if(detail.textContent!==detailText)detail.textContent=detailText;
+      const detail=root.querySelector('[data-zone-detail]'),detailText=names[zone]+' · 구획 건전성 '+pct(health)+'% · 화재 '+pct(fire)+'% · 침수 '+pct(flood)+'%'+(z.crew?' · 운용 인력 '+pct(z.crew.operators)+'% · 소속 작업반 '+pct(z.crew.repairParty)+'% · 구조 잔존 '+pct(z.structure)+'%':'')+(m?' · 장약 과열 '+pct(m.heat)+'%':'')+(m?.detonated?' · 유폭':m?.flooded?' · 탄약고 주수 완료':'');detail.setAttribute('aria-live',playing?'off':'polite');if(detail.textContent!==detailText)detail.textContent=detailText;
       const functionDetail=root.querySelector('[data-zone-function]');functionDetail.setAttribute('aria-live',playing?'off':'polite');let functionText='공동 기관 출력 '+pct(s.engine)+'% · 현재 속력 '+(Number(s.speedKnots)||0).toFixed(1)+' kn';
       if(m){
         const turret=s.turrets[mi],usable=turret.barrels.filter(b=>b>.12).length,stopped=s.sunk?'침몰':m.detonated?'탄약고 유폭':m.flooded?'긴급 주수 완료':turret.health<=.075?'포탑 손상':!usable?'포신 손상':turret.feed?.available===false?turret.feed.status||'급탄 기능 상실':s.defeated?'함선 전투 불능':turret.disabled?'포탑 기능 상실':'';
         const readiness=stopped?'사격 정지: '+stopped:s.fireSolution?.inRange===false?'사거리 밖 · 사격 대기':Array.isArray(s.fireSolution?.eligibleTurrets)&&!s.fireSolution.eligibleTurrets.includes(mi)?'사격각 확보 중':'포탑 사격 가능';
         functionText=(m.detonated?'장약 유폭':m.flooded?'장약 주수·사용 불가':m.heat>.35?'장약 가열':'장약 보존')+' · 가동 포신 '+(stopped?0:usable)+' / 3문'+(m.floodingActive?' · 주수 '+pct(m.floodProgress)+'%':'')+' · '+readiness;
       }
+      if(z.equipment)functionText+=' · 배수 펌프 '+pct(z.equipment.pump)+'% · 소화 배관 '+pct(z.equipment.suppression)+'%';
       if(functionDetail.textContent!==functionText)functionDetail.textContent=functionText;
       const equipment=root.querySelector('[data-equipment-detail]');equipment.hidden=!m?.equipment;equipment.setAttribute('aria-live',playing?'off':'polite');
       if(m?.equipment){
@@ -4347,10 +4724,18 @@ function createDuelCompartments(T,built,id){
           card.querySelector('[data-vital-received]').textContent='피탄 '+(s.hitsReceived||0)+'발 · 관통 '+(s.penetrationsReceived||0)+'발';
           const power=card.querySelector('[data-vital-power]');power.textContent='전력 '+pct(s.power?.output??1)+'%';power.classList.toggle('text-destructive',(s.power?.output??1)<.2);
           const feeds=s.turrets.filter(t=>!t.disabled&&(t.feed?.available??true)).length;card.querySelector('[data-vital-feed]').textContent='급탄 가능 '+feeds+' / 3탑'+(Number.isFinite(s.supplyRate)?' · 속도 '+pct(s.supplyRate)+'%':'');
-          const cause=card.querySelector('[data-vital-cause]'),label=s.criticalCause?.label;cause.hidden=!label;cause.textContent=label||'';
+          const cause=card.querySelector('[data-vital-cause]'),label=s.operationalFailure?.label||s.criticalCause?.label;cause.hidden=!label;cause.textContent=label||'';
+        }
+        if(crewDamageExperiment){
+          const crew=card.querySelector('[data-crew-summary]');crew.hidden=!s.crew;
+          if(s.crew){
+            crew.querySelector('[data-crew-operators]').textContent='운용 인력 '+pct(s.crew.operators)+'%';
+            crew.querySelector('[data-crew-parties]').textContent='작업반 '+pct(s.crew.repairParties)+'%';
+            const dc=s.damageControl;crew.querySelector('[data-crew-response]').textContent='손상통제 · '+(dc?.status||'대기')+(dc?.activeZones?' · 대응 '+dc.activeZones+'곳':'');
+          }
         }
         card.querySelector('[data-engine-value]').textContent='기관 '+(s.engine>.85?'정상':s.engine>.45?'손상':'중손상');card.querySelector('[data-control-value]').textContent='사격통제 '+(s.fireControl>.8?'정상':s.fireControl>.35?'손상':'상실');const integrity=card.querySelector('[data-integrity-value]');integrity.textContent='선체 내구도 '+pct(s.integrity)+'%';integrity.classList.toggle('text-destructive',s.integrity<.15);card.querySelector('[data-flood-value]').textContent='침수 '+pct(s.flooding)+'%';card.querySelector('[data-fire-value]').textContent=s.fire<.025?'화재 없음':'화재 '+pct(s.fire)+'%';
-        card.querySelector('[data-condition]').textContent=s.sunk?(s.sinking?.causeLabel||s.sinking?.label||'침몰'):s.defeated?'전투 불능':s.power?.output<=.16?'주전원 상실':s.activeGuns===0?'사격 불능':s.activeGuns<6||s.engine<.4?'중손상':'전투 가능';
+        card.querySelector('[data-condition]').textContent=s.sunk?(s.sinking?.causeLabel||s.sinking?.label||'침몰'):s.defeated?(s.operationalFailure?.label||'전투 불능'):s.power?.output<=.16?'주전원 상실':s.activeGuns===0?'사격 불능':s.activeGuns<6||s.engine<.4?'중손상':'전투 가능';
         card.querySelector('[data-maneuver-value]').textContent=s.maneuver?.name||'직진';card.querySelector('[data-evasion-value]').textContent='조준 교란 '+pct(s.maneuver?.evasionEffect)+'%';card.querySelector('[data-aim-cost-value]').textContent='내 산포 +'+Math.round(Math.max(0,Number(s.maneuver?.selfAimPenalty)||0)*100)+'%';
         const solution=s.fireSolution,range=Number(snapshot.currentRangeKm)||config.rangeKm,max=Number(s.maxGunRangeKm)||(id==='yamato'?42.025824:38.720268),inRange=solution?.inRange??range<=max;
         card.querySelector('[data-range-state-value]').textContent=s.defeated?'사격 중지':s.power?.output<=.16?'주전원 상실 · 사격 정지':s.activeGuns===0?'포탑 사격 불가':!inRange?'사거리 밖 · '+Math.max(0,range-max).toFixed(1)+' km 더 접근':s.rangeState==='no-arc'?'선회 · 사격각 확보 중':'사격권 · '+(s.fireableGuns??s.activeGuns)+'문 조준';const elevationDeg=T.MathUtils.radToDeg(Number(solution?.elevationRad)||0),trajectoryLabel=config.gunneryModel==='range-aware'?(elevationDeg<=10?'평사 · ':elevationDeg<25?'중거리 탄도 · ':'원거리 탄도 · '):'';card.querySelector('[data-gun-elevation-value]').textContent=trajectoryLabel+'포신 '+elevationDeg.toFixed(1)+'°';card.querySelector('[data-range-state-value]').setAttribute('data-tooltip','철갑탄 최대 사거리 '+max.toFixed(1)+' km');
@@ -4369,11 +4754,11 @@ function createDuelCompartments(T,built,id){
       else if(!result&&lastResult){lastResult='';stage.setAttribute('aria-label','야마토와 아이오와의 가상 일대일 포격전. 부위별 피해가 화력과 속력에 영향을 줍니다. 피해 구획을 켜면 개념적인 기관실과 탄약고 배치를 볼 수 있습니다.');}
       const shownTime=blastPreview?blastPreview.elapsed:clock,shownDuration=blastPreview?24:duel.duration,canPlay=hasRun||!!blastPreview;
       root.querySelector('[data-time-value]').textContent=canPlay?fmt(shownTime)+' / '+fmt(shownDuration):fmt(0);timeInput.max=String(shownDuration);timeInput.value=String(shownTime);timeInput.disabled=!canPlay;pause.disabled=!canPlay||!blastPreview&&shownTime>=shownDuration;pause.textContent=shownTime>=shownDuration?(blastPreview?'유폭 다시 재생':'교전 종료'):playing?'일시정지':'계속 재생';pause.setAttribute('aria-pressed',String(canPlay&&!playing));replay.disabled=!hasRun||!!blastPreview;start.disabled=!!blastPreview;start.textContent=hasRun?'새 교전':'교전 시작';
-      root.querySelector('[data-battle-number]').textContent=hasRun?'교전 '+battleNumber+' · '+(config.encounterMode==='maximum'?'최대 사거리 조우':config.rangeKm+' km 조우')+(config.ballisticsMode==='mesh-path'?' · 외형 충돌 판정':config.damageModel==='critical'?' · 탄약고 직격 판정':config.damageModel==='cascade'?' · 구획 열 전파':config.damageModel==='legacy'?' · 기존 교전':' · 기존 교전 · 설비 고장·수리')+(config.damageModel==='vital-path'?' · 급소 관통 피해':'')+(config.magazineRisk==='high'?' · 유폭 위험 높음':'')+(config.magazinePropagation==='chain'?' · 연쇄 전파 실험':''):'교전 대기';
+      root.querySelector('[data-battle-number]').textContent=hasRun?'교전 '+battleNumber+' · '+(config.encounterMode==='maximum'?'최대 사거리 조우':config.rangeKm+' km 조우')+(config.ballisticsMode==='mesh-path'?' · 외형 충돌 판정':config.damageModel==='critical'?' · 탄약고 직격 판정':config.damageModel==='cascade'?' · 구획 열 전파':config.damageModel==='legacy'?' · 기존 교전':' · 기존 교전 · 설비 고장·수리')+(['vital-path','crew-vital'].includes(config.damageModel)?' · 급소 관통 피해':'')+(config.damageModel==='crew-vital'?' · 인력·손상통제':'')+(config.magazineRisk==='high'?' · 유폭 위험 높음':'')+(config.magazinePropagation==='chain'?' · 연쇄 전파 실험':''):'교전 대기';
       root.querySelector('[data-current-range]').textContent='함간 거리 '+(Number(snapshot.currentRangeKm)||config.rangeKm).toFixed(1)+' km';const closing=Number(snapshot.closingSpeedKnots)||0;root.querySelector('[data-closing-speed]').textContent=Math.abs(closing)<.5?'거리 유지':(closing>0?'접근 ':'이격 ')+Math.abs(closing).toFixed(1)+' kn';root.querySelector('[data-encounter-phase]').textContent=config.gunneryModel==='range-aware'&&config.encounterMode!=='maximum'?((Number(snapshot.currentRangeKm)||config.rangeKm)<=12?'근거리 교전':'거리 지정 교전'):config.encounterMode==='maximum'?({approach:'원거리 접근',exchange:'양함 포격', 'mid-range':'중거리 교전'}[snapshot.encounterPhase]||'최대 사거리 조우'):'거리 지정 교전';
       const recent=!hasRun||blastPreview?[]:duel.events.filter(e=>e.time<=clock&&e.label&&e.type!=='splash').slice(-8),keyString=String(config.seed)+'|'+recent.map(e=>e.id+':'+eventLabel(e)).join('|');log.setAttribute('aria-live',playing?'off':'polite');
       if(keyString!==lastLog){lastLog=keyString;log.replaceChildren();for(const event of recent)appendEventItem(log,event);root.querySelector('[data-last-event]').textContent=recent.length?eventLabel(recent.at(-1)):'아직 사격하지 않았습니다';}
-      Object.assign(stage.dataset,{time:clock.toFixed(2),previewTime:blastPreview?blastPreview.elapsed.toFixed(2):'',previewMagazine:blastPreview?blastPreview.ship+':'+blastPreview.turretIndex:'',previewPropagation:blastPreview?.propagation||'',magazinePropagation:config.magazinePropagation||'isolated',seed:String(config.seed),playing:String(playing),yamatoGuns:String(snapshot.ships.yamato.activeGuns),iowaGuns:String(snapshot.ships.iowa.activeGuns),yamatoFlood:String(snapshot.ships.yamato.flooding),iowaFlood:String(snapshot.ships.iowa.flooding),result:result?.reason||'none',focus,cutaway:String(cutaway),maneuverMode:config.maneuverMode,encounterMode:config.encounterMode,damageModel:config.damageModel,ballisticsMode:duel.initialConfig.ballistics||'proxy',gunneryModel:config.gunneryModel||'legacy-range',repairPolicy:config.repairPolicy,magazineRisk:config.magazineRisk,currentRangeKm:String(snapshot.currentRangeKm||config.rangeKm),yamatoInRange:String(snapshot.ships.yamato.fireSolution?.inRange),iowaInRange:String(snapshot.ships.iowa.fireSolution?.inRange),yamatoHeading:String(snapshot.ships.yamato.heading),iowaHeading:String(snapshot.ships.iowa.heading),yamatoPosition:snapshot.ships.yamato.position.join(','),iowaPosition:snapshot.ships.iowa.position.join(','),yamatoEvasion:String(snapshot.ships.yamato.maneuver?.evasionEffect||0),iowaEvasion:String(snapshot.ships.iowa.maneuver?.evasionEffect||0)});
+      Object.assign(stage.dataset,{time:clock.toFixed(2),previewTime:blastPreview?blastPreview.elapsed.toFixed(2):'',previewMagazine:blastPreview?blastPreview.ship+':'+blastPreview.turretIndex:'',previewPropagation:blastPreview?.propagation||'',magazinePropagation:config.magazinePropagation||'isolated',seed:String(config.seed),playing:String(playing),yamatoGuns:String(snapshot.ships.yamato.activeGuns),iowaGuns:String(snapshot.ships.iowa.activeGuns),yamatoFlood:String(snapshot.ships.yamato.flooding),iowaFlood:String(snapshot.ships.iowa.flooding),result:result?.reason||'none',focus,cutaway:String(cutaway),maneuverMode:config.maneuverMode,encounterMode:config.encounterMode,damageModel:config.damageModel,revision:duel.initialConfig.modelRevision,yamatoCrew:String(snapshot.ships.yamato.crew?.operators??1),iowaCrew:String(snapshot.ships.iowa.crew?.operators??1),yamatoRepairParties:String(snapshot.ships.yamato.crew?.repairParties??1),iowaRepairParties:String(snapshot.ships.iowa.crew?.repairParties??1),ballisticsMode:duel.initialConfig.ballistics||'proxy',gunneryModel:config.gunneryModel||'legacy-range',repairPolicy:config.repairPolicy,magazineRisk:config.magazineRisk,currentRangeKm:String(snapshot.currentRangeKm||config.rangeKm),yamatoInRange:String(snapshot.ships.yamato.fireSolution?.inRange),iowaInRange:String(snapshot.ships.iowa.fireSolution?.inRange),yamatoHeading:String(snapshot.ships.yamato.heading),iowaHeading:String(snapshot.ships.iowa.heading),yamatoPosition:snapshot.ships.yamato.position.join(','),iowaPosition:snapshot.ships.iowa.position.join(','),yamatoEvasion:String(snapshot.ships.yamato.maneuver?.evasionEffect||0),iowaEvasion:String(snapshot.ships.iowa.maneuver?.evasionEffect||0)});
     }
     function displayedState(){return blastPreview?.frameState||snapshot;}
     function currentCenter(){const shown=displayedState();if(focus==='whole'){const a=shown.ships.yamato.position,b=shown.ships.iowa.position;return new T.Vector3((a[0]+b[0])*.5,9,(a[2]+b[2])*.5);}const s=shown.ships[focus];return new T.Vector3(s.position[0],blastPreview?22:cutaway?s.renderPosition[1]:5,s.position[2]);}
@@ -4445,18 +4830,18 @@ function createDuelCompartments(T,built,id){
       for(const id of ['yamato','iowa']){const motion=snapshot.ships[id].impactMotion;stage.dataset[id+'ImpactEnergy']=String(motion?.energy||0);stage.dataset[id+'ImpactRoll']=String(motion?.roll||0);}
     }
     function persist(){
-      const saved=blastPreview?.saved,state={modelContent:{model:'야마토 × 아이오와 · 1944 가상 교전',battle:{seed:config.seed,encounterMode:config.encounterMode,rangeKm:config.rangeKm,currentRangeKm:Number((snapshot.currentRangeKm||config.rangeKm).toFixed(2)),visibility:config.visibility,accuracyScale:config.accuracyScale,revision:duel.initialConfig.modelRevision,repairPolicy:config.repairPolicy,magazineRisk:config.magazineRisk,magazinePropagation:config.magazinePropagation||'isolated',maneuverMode:config.maneuverMode,seaState,trajectoryMode,ballisticsMode:config.ballisticsMode||null,gunneryModel:config.gunneryModel||null,damageModel:config.damageModel,speed,time:clock,result:snapshot.result?.label||null,focus:saved?.focus||focus,cutaway:saved?saved.cutaway:cutaway},effectPreview:blastPreview?{ship:blastPreview.ship,magazine:blastPreview.turretIndex+1,propagation:blastPreview.propagation,time:Number(blastPreview.elapsed.toFixed(2))}:null,ships:Object.fromEntries(Object.entries(snapshot.ships).map(([id,s])=>[id,{speedKnots:Number(s.speedKnots.toFixed(1)),activeGuns:s.activeGuns,hitsReceived:s.hitsReceived,penetrationsReceived:s.penetrationsReceived,...(s.power?{power:{output:pct(s.power.output),status:s.power.status,supplyRate:pct(s.supplyRate)},criticalCause:s.criticalCause||null,feed:s.turrets.map((t,i)=>({number:i+1,available:t.feed?.available??true,supplyRate:pct(t.feed?.supplyRate??1),status:t.feed?.status||null}))}:{}),integrity:pct(s.integrity),flooding:pct(s.flooding),fire:pct(s.fire),status:s.status,sinkingCause:s.sinking?.causeLabel||null,structuralFailure:s.structuralFailure||null,magazines:s.turrets.map((t,i)=>({number:i+1,detonated:t.magazine.detonated,flooded:t.magazine.flooded,heat:pct(t.magazine.heat),state:t.magazine.stateLabel||null,detonationCause:t.magazine.detonationCause||null,heatSource:t.magazine.heatSource||null,floodProgress:pct(t.magazine.floodProgress),riskMultiplier:Number((t.magazine.riskMultiplier||1).toFixed(2)),repairStatus:t.magazine.repairStatus||null,equipment:t.magazine.equipment?Object.fromEntries(Object.entries(t.magazine.equipment).map(([k,e])=>[k,{health:pct(e.health),fault:e.fault,repairProgress:pct(e.repairProgress)}])):null})),maneuver:s.maneuver?.name||'직진',aimDisruption:pct(s.maneuver?.evasionEffect),inGunRange:s.fireSolution?.inRange??true}]))},privateContent:{version:vitalHitsExperiment?'duel-11':directFireExperiment?'duel-10':ballisticsExperiment?'duel-9':'duel-8',hasRun,battleNumber,view:saved?.view||view,zone,oceanOffset,exteriorView:saved?saved.exteriorView:exteriorView,camera:saved?.camera||camera.position.toArray(),target:saved?.target||controls.target.toArray(),aspect:saved?.aspect||camera.aspect,blastPreview:blastPreview?{ship:blastPreview.ship,turretIndex:blastPreview.turretIndex,propagation:blastPreview.propagation,elapsed:blastPreview.elapsed}:null}};lastSaved=JSON.stringify(state);if(window.openai?.setWidgetState)Promise.resolve(window.openai.setWidgetState(state)).catch(()=>{});
+      const saved=blastPreview?.saved,state={modelContent:{model:'야마토 × 아이오와 · 1944 가상 교전',battle:{seed:config.seed,encounterMode:config.encounterMode,rangeKm:config.rangeKm,currentRangeKm:Number((snapshot.currentRangeKm||config.rangeKm).toFixed(2)),visibility:config.visibility,accuracyScale:config.accuracyScale,revision:duel.initialConfig.modelRevision,repairPolicy:config.repairPolicy,magazineRisk:config.magazineRisk,magazinePropagation:config.magazinePropagation||'isolated',maneuverMode:config.maneuverMode,seaState,trajectoryMode,ballisticsMode:config.ballisticsMode||null,gunneryModel:config.gunneryModel||null,damageModel:config.damageModel,speed,time:clock,result:snapshot.result?.label||null,focus:saved?.focus||focus,cutaway:saved?saved.cutaway:cutaway},effectPreview:blastPreview?{ship:blastPreview.ship,magazine:blastPreview.turretIndex+1,propagation:blastPreview.propagation,time:Number(blastPreview.elapsed.toFixed(2))}:null,ships:Object.fromEntries(Object.entries(snapshot.ships).map(([id,s])=>[id,{speedKnots:Number(s.speedKnots.toFixed(1)),activeGuns:s.activeGuns,hitsReceived:s.hitsReceived,penetrationsReceived:s.penetrationsReceived,...(s.power?{power:{output:pct(s.power.output),status:s.power.status,supplyRate:pct(s.supplyRate)},criticalCause:s.criticalCause||null,feed:s.turrets.map((t,i)=>({number:i+1,available:t.feed?.available??true,supplyRate:pct(t.feed?.supplyRate??1),status:t.feed?.status||null}))}:{}),...(s.crew?{crew:{operators:pct(s.crew.operators),repairParties:pct(s.crew.repairParties)},damageControl:{capacity:Number(s.damageControl.capacity.toFixed(3)),demand:Number(s.damageControl.demand.toFixed(3)),allocated:Number(s.damageControl.allocated.toFixed(3)),activeZones:s.damageControl.activeZones,status:s.damageControl.status},operationalFailure:s.operationalFailure||null}:{}),integrity:pct(s.integrity),flooding:pct(s.flooding),fire:pct(s.fire),status:s.status,sinkingCause:s.sinking?.causeLabel||null,structuralFailure:s.structuralFailure||null,magazines:s.turrets.map((t,i)=>({number:i+1,detonated:t.magazine.detonated,flooded:t.magazine.flooded,heat:pct(t.magazine.heat),state:t.magazine.stateLabel||null,detonationCause:t.magazine.detonationCause||null,heatSource:t.magazine.heatSource||null,floodProgress:pct(t.magazine.floodProgress),riskMultiplier:Number((t.magazine.riskMultiplier||1).toFixed(2)),repairStatus:t.magazine.repairStatus||null,equipment:t.magazine.equipment?Object.fromEntries(Object.entries(t.magazine.equipment).map(([k,e])=>[k,{health:pct(e.health),fault:e.fault,repairProgress:pct(e.repairProgress)}])):null})),maneuver:s.maneuver?.name||'직진',aimDisruption:pct(s.maneuver?.evasionEffect),inGunRange:s.fireSolution?.inRange??true}]))},privateContent:{version:crewDamageExperiment?'duel-12':vitalHitsExperiment?'duel-11':directFireExperiment?'duel-10':ballisticsExperiment?'duel-9':'duel-8',hasRun,battleNumber,view:saved?.view||view,zone,oceanOffset,exteriorView:saved?saved.exteriorView:exteriorView,camera:saved?.camera||cameraAnimation?.to.toArray()||camera.position.toArray(),target:saved?.target||cameraAnimation?.at.toArray()||controls.target.toArray(),aspect:saved?.aspect||camera.aspect,blastPreview:blastPreview?{ship:blastPreview.ship,turretIndex:blastPreview.turretIndex,propagation:blastPreview.propagation,elapsed:blastPreview.elapsed}:null}};lastSaved=JSON.stringify(state);if(window.openai?.setWidgetState)Promise.resolve(window.openai.setWidgetState(state)).catch(()=>{});
     }
     function restore(state){
-      if(!['duel-1','duel-2','duel-3','duel-4','duel-5','duel-6','duel-7','duel-8','duel-9','duel-10','duel-11'].includes(state?.privateContent?.version)||JSON.stringify(state)===lastSaved)return;const b=state.modelContent?.battle,v=state.privateContent;if(!b)return;if(blastPreview)finishBlastPreview(false);
-      config={seed:Number.isFinite(b.seed)?b.seed>>>0:19440426,encounterMode:b.encounterMode==='maximum'?'maximum':'set-range',rangeKm:b.encounterMode==='maximum'?42:(directFireExperiment?[6,12,18,24]:[12,18,24]).includes(b.rangeKm)?b.rangeKm:18,visibility:['clear','haze','night'].includes(b.visibility)?b.visibility:'clear',accuracyScale:T.MathUtils.clamp(Number(b.accuracyScale)||1,.65,1.5),maneuverMode:b.maneuverMode==='steady'?'steady':'evasive',damageModel:b.revision==='naval-duel-11'&&vitalHitsExperiment?'vital-path':!v.hasRun&&vitalHitsExperiment?'vital-path':!v.hasRun||['naval-duel-7','naval-duel-8','naval-duel-9','naval-duel-10','naval-duel-11'].includes(b.revision)?'critical':b.revision==='naval-duel-6'?'cascade':b.revision==='naval-duel-5'?'equipment':'legacy',repairPolicy:['balanced','magazine-priority','none'].includes(b.repairPolicy)?b.repairPolicy:'balanced',magazineRisk:(!v.hasRun||['naval-duel-6','naval-duel-7','naval-duel-8','naval-duel-9','naval-duel-10','naval-duel-11'].includes(b.revision))&&b.magazineRisk==='high'?'high':'normal',magazinePropagation:['naval-duel-8','naval-duel-9','naval-duel-10','naval-duel-11'].includes(b.revision)&&b.magazinePropagation==='chain'?'chain':'isolated',ballisticsMode:ballisticsExperiment?'mesh-path':null,gunneryModel:directFireExperiment?'range-aware':null,ballisticSeaState:['calm','moderate','rough'].includes(b.seaState)?b.seaState:'moderate',ballisticOceanOffset:Number.isFinite(v.oceanOffset)?v.oceanOffset:0};duel=buildBattle(config);effects.clear();trajectories.clear();lastLog='';delete root.querySelector('[data-zone-history]').dataset.key;hasRun=Boolean(v.hasRun);clock=hasRun?T.MathUtils.clamp(Number(b.time)||0,0,duel.duration):0;playing=false;speed=[.25,1,4,12].includes(b.speed)?b.speed:4;focus=['whole','yamato','iowa'].includes(b.focus)?b.focus:'whole';cutaway=Boolean(b.cutaway);if(cutaway&&focus==='whole')focus='yamato';view=styles[v.view]?v.view:'angle';zone=['engine','boiler','magazineA','magazineB','magazineC'].includes(v.zone)?v.zone:'engine';battleNumber=Number(v.battleNumber)||1;
+      if(!['duel-1','duel-2','duel-3','duel-4','duel-5','duel-6','duel-7','duel-8','duel-9','duel-10','duel-11','duel-12'].includes(state?.privateContent?.version)||JSON.stringify(state)===lastSaved)return;const b=state.modelContent?.battle,v=state.privateContent;if(!b)return;if(blastPreview)finishBlastPreview(false);
+      config={seed:Number.isFinite(b.seed)?b.seed>>>0:19440426,encounterMode:b.encounterMode==='maximum'?'maximum':'set-range',rangeKm:b.encounterMode==='maximum'?42:(directFireExperiment?[6,12,18,24]:[12,18,24]).includes(b.rangeKm)?b.rangeKm:18,visibility:['clear','haze','night'].includes(b.visibility)?b.visibility:'clear',accuracyScale:T.MathUtils.clamp(Number(b.accuracyScale)||1,.65,1.5),maneuverMode:b.maneuverMode==='steady'?'steady':'evasive',damageModel:b.revision==='naval-duel-12'&&crewDamageExperiment?'crew-vital':b.revision==='naval-duel-11'&&vitalHitsExperiment?'vital-path':!v.hasRun&&crewDamageExperiment?'crew-vital':!v.hasRun&&vitalHitsExperiment?'vital-path':!v.hasRun||['naval-duel-7','naval-duel-8','naval-duel-9','naval-duel-10','naval-duel-11','naval-duel-12'].includes(b.revision)?'critical':b.revision==='naval-duel-6'?'cascade':b.revision==='naval-duel-5'?'equipment':'legacy',repairPolicy:['balanced','magazine-priority','none'].includes(b.repairPolicy)?b.repairPolicy:'balanced',magazineRisk:(!v.hasRun||['naval-duel-6','naval-duel-7','naval-duel-8','naval-duel-9','naval-duel-10','naval-duel-11','naval-duel-12'].includes(b.revision))&&b.magazineRisk==='high'?'high':'normal',magazinePropagation:['naval-duel-8','naval-duel-9','naval-duel-10','naval-duel-11','naval-duel-12'].includes(b.revision)&&b.magazinePropagation==='chain'?'chain':'isolated',ballisticsMode:ballisticsExperiment?'mesh-path':null,gunneryModel:directFireExperiment?'range-aware':null,ballisticSeaState:['calm','moderate','rough'].includes(b.seaState)?b.seaState:'moderate',ballisticOceanOffset:Number.isFinite(v.oceanOffset)?v.oceanOffset:0};duel=buildBattle(config);effects.clear();trajectories.clear();lastLog='';delete root.querySelector('[data-zone-history]').dataset.key;hasRun=Boolean(v.hasRun);clock=hasRun?T.MathUtils.clamp(Number(b.time)||0,0,duel.duration):0;playing=false;speed=[.25,1,4,12].includes(b.speed)?b.speed:4;focus=['whole','yamato','iowa'].includes(b.focus)?b.focus:'whole';cutaway=Boolean(b.cutaway);if(cutaway&&focus==='whole')focus='yamato';view=styles[v.view]?v.view:'angle';zone=['engine','boiler','magazineA','magazineB','magazineC'].includes(v.zone)?v.zone:'engine';battleNumber=Number(v.battleNumber)||1;
       const e=v.exteriorView;exteriorView=cutaway&&e&&['whole','yamato','iowa'].includes(e.focus)&&Object.hasOwn(styles,e.view)&&['camera','target','center'].every(k=>Array.isArray(e[k])&&e[k].length===3&&e[k].every(Number.isFinite))&&Number.isFinite(e.aspect)&&e.aspect>0?{focus:e.focus,view:e.view,camera:[...e.camera],target:[...e.target],center:[...e.center],aspect:e.aspect,fleetDistance:Number.isFinite(e.fleetDistance)&&e.fleetDistance>0?e.fleetDistance:null}:null;
       trajectoryMode=typeof b.trajectoryMode==='boolean'?b.trajectoryMode:trajectoryExperiment;trajectoryInput.checked=trajectoryMode;seaState=['calm','moderate','rough'].includes(b.seaState)?b.seaState:'moderate';oceanOffset=Number.isFinite(v.oceanOffset)?v.oceanOffset:0;seaInput.value=seaState;encounterInput.value=b.encounterMode?config.encounterMode:'maximum';rangeInput.value=String(config.encounterMode==='maximum'?18:config.rangeKm);updateEncounterControls();visibilityInput.value=config.visibility;maneuverInput.value=config.maneuverMode;repairInput.value=config.repairPolicy;magazineRiskInput.value=config.magazineRisk;propagationInput.value=config.magazinePropagation;accuracyInput.value=String(config.accuracyScale);root.querySelector('[data-accuracy-value]').textContent=config.accuracyScale.toFixed(2)+'×';speedInput.value=String(speed);focusInput.value=focus;cutawayInput.checked=cutaway;setSection();update();fit(false);
       if(Array.isArray(v.camera)&&v.camera.length===3&&v.camera.every(Number.isFinite)&&Array.isArray(v.target)&&v.target.length===3&&v.target.every(Number.isFinite)){camera.position.fromArray(v.camera);controls.target.fromArray(v.target);if(v.aspect>camera.aspect)camera.position.sub(controls.target).multiplyScalar(v.aspect/camera.aspect).add(controls.target);controls.update();}dirty=true;
       if(v.blastPreview&&['yamato','iowa'].includes(v.blastPreview.ship)&&[0,1,2].includes(v.blastPreview.turretIndex))showBlastPreview({...v.blastPreview,autoplay:false,restoring:true});
     }
     function begin(fresh){
-      if(fresh){oceanOffset+=clock;const seeds=new Uint32Array(1);if(window.crypto?.getRandomValues)window.crypto.getRandomValues(seeds);else seeds[0]=(Date.now()+battleNumber*2654435761)>>>0;config={seed:seeds[0],encounterMode:encounterInput.value,rangeKm:encounterInput.value==='maximum'?42:Number(rangeInput.value),visibility:visibilityInput.value,accuracyScale:Number(accuracyInput.value),maneuverMode:maneuverInput.value,damageModel:vitalHitsExperiment?'vital-path':'critical',repairPolicy:repairInput.value,magazineRisk:magazineRiskInput.value,magazinePropagation:propagationInput.value,ballisticsMode:ballisticsExperiment?'mesh-path':null,gunneryModel:directFireExperiment?'range-aware':null,ballisticSeaState:seaState,ballisticOceanOffset:oceanOffset};duel=buildBattle(config);battleNumber++;}effects.clear();trajectories.clear();lastLog='';delete root.querySelector('[data-zone-history]').dataset.key;clock=0;hasRun=true;playing=true;setEnvironment();update();fit(false);persist();
+      if(fresh){oceanOffset+=clock;const seeds=new Uint32Array(1);if(window.crypto?.getRandomValues)window.crypto.getRandomValues(seeds);else seeds[0]=(Date.now()+battleNumber*2654435761)>>>0;config={seed:seeds[0],encounterMode:encounterInput.value,rangeKm:encounterInput.value==='maximum'?42:Number(rangeInput.value),visibility:visibilityInput.value,accuracyScale:Number(accuracyInput.value),maneuverMode:maneuverInput.value,damageModel:crewDamageExperiment?'crew-vital':vitalHitsExperiment?'vital-path':'critical',repairPolicy:repairInput.value,magazineRisk:magazineRiskInput.value,magazinePropagation:propagationInput.value,ballisticsMode:ballisticsExperiment?'mesh-path':null,gunneryModel:directFireExperiment?'range-aware':null,ballisticSeaState:seaState,ballisticOceanOffset:oceanOffset};duel=buildBattle(config);battleNumber++;}effects.clear();trajectories.clear();lastLog='';delete root.querySelector('[data-zone-history]').dataset.key;clock=0;hasRun=true;playing=true;setEnvironment();update();fit(false);persist();
     }
     start.addEventListener('click',()=>begin(true));replay.addEventListener('click',()=>begin(false));pause.addEventListener('click',()=>{if(blastPreview&&blastPreview.elapsed>=24){blastPreview.elapsed=0;effects.clear();playing=true;update();fit(false);}else{playing=!playing;updateStatus();}persist();});speedInput.addEventListener('change',()=>{speed=Number(speedInput.value);persist();});
     blastButton.addEventListener('click',()=>{if(blastPreview)finishBlastPreview();else showBlastPreview();});
@@ -4464,8 +4849,8 @@ function createDuelCompartments(T,built,id){
     accuracyInput.addEventListener('input',()=>{root.querySelector('[data-accuracy-value]').textContent=Number(accuracyInput.value).toFixed(2)+'×';});
     seaInput.addEventListener('change',()=>{seaState=seaInput.value;if(config.ballisticsMode==='mesh-path'){config.ballisticSeaState=seaState;config.ballisticOceanOffset=oceanOffset;duel=buildBattle(config);clock=Math.min(clock,duel.duration);lastLog='';delete root.querySelector('[data-zone-history]').dataset.key;}effects.clear();trajectories.clear();update();persist();});
     timeInput.addEventListener('input',()=>{playing=false;if(cameraAnimation){camera.position.copy(cameraAnimation.to);controls.target.copy(cameraAnimation.at);cameraAnimation=null;controls.update();}if(blastPreview)blastPreview.elapsed=Number(timeInput.value);else clock=Number(timeInput.value);update();});timeInput.addEventListener('change',persist);
-    focusInput.addEventListener('change',()=>{focus=focusInput.value;cameraAnimation=null;resetTracking();if(cutaway&&focus==='whole'){cutaway=false;exteriorView=null;cutawayInput.checked=false;resetTracking();}setSection();update();fit();if(!cameraAnimation)persist();});
-    cutawayInput.addEventListener('change',()=>{if(!cutawayInput.checked){returnToExterior();return;}rememberExterior();cameraAnimation=null;cutaway=true;if(focus==='whole'){focus='yamato';focusInput.value=focus;}resetTracking();setSection();update();fit();if(!cameraAnimation)persist();});
+    focusInput.addEventListener('change',()=>{focus=focusInput.value;cameraAnimation=null;resetTracking();if(cutaway&&focus==='whole'){cutaway=false;exteriorView=null;cutawayInput.checked=false;resetTracking();}setSection();update();fit();persist();});
+    cutawayInput.addEventListener('change',()=>{if(!cutawayInput.checked){returnToExterior();return;}rememberExterior();cameraAnimation=null;cutaway=true;if(focus==='whole'){focus='yamato';focusInput.value=focus;}resetTracking();setSection();update();fit();persist();});
     trajectoryInput.addEventListener('change',()=>{trajectoryMode=trajectoryInput.checked;cameraAnimation=null;update();fit(false);persist();});
     root.querySelector('[data-return]').addEventListener('click',returnToExterior);
     root.querySelectorAll('[data-view]').forEach(button=>button.addEventListener('click',()=>{view=button.dataset.view;fit();}));root.querySelectorAll('[data-zone]').forEach(button=>button.addEventListener('click',()=>{zone=button.dataset.zone;updateZone();persist();}));

@@ -4,7 +4,7 @@
     const publicConditionLabels={
       visibility:{clear:'맑음',haze:'박무',night:'야간'},
       maneuverMode:{evasive:'지그재그 기동',steady:'직선 항해'},
-      repairPolicy:{balanced:'균형 대응','magazine-priority':'탄약고 설비 우선',none:'설비 수리 중지'},
+      repairPolicy:{balanced:'균형 대응','magazine-priority':'탄약고 설비 우선',none:'탄약고 설비 수리 중지'},
       magazineRisk:{normal:'기본',high:'높음 · 실험'},
       magazinePropagation:{isolated:'구획별',chain:'연쇄 전파 · 실험'}
     };
@@ -18,6 +18,9 @@
     const publicAppliedHeading=document.createElement('strong');
     publicAppliedHeading.textContent='현재 교전 조건';
     publicAppliedSummary.appendChild(publicAppliedHeading);
+    const publicDamageModel=document.createElement('span');
+    publicDamageModel.setAttribute('data-public-damage-model','');
+    publicAppliedSummary.appendChild(publicDamageModel);
     const publicSummaryFields={};
     for(const key of publicSettingKeys){
       if(key==='encounterMode')continue;
@@ -67,6 +70,7 @@
     }
     function refreshPublicControls(){
       const pending=publicSettingsChanged(),applied=validatePublicSettings(config)||readPublicSettings();
+      publicControlText(publicDamageModel,config.damageModel==='crew-vital'?'피해 모델 · 인력·손상통제':'피해 모델 · 이전 교전 재현');
       for(const input of publicConditionInputs)input.disabled=!!blastPreview;
       publicControlText(publicSummaryFields.rangeKm,applied.encounterMode==='maximum'?'최대 사거리 조우 · 42 km':'시작 거리 · '+applied.rangeKm+' km');
       publicControlText(publicSummaryFields.visibility,'시정 · '+publicConditionLabels.visibility[applied.visibility]);
