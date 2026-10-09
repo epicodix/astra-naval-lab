@@ -272,7 +272,12 @@
     "양함 포격": "Both ships firing",
     "중거리 교전": "Medium-range battle",
     "3D 화면 연결이 끊겼습니다. 다시 열면 복구됩니다.": "The 3D display connection was lost. Reopen the page to restore it.",
-    "교전 모형을 표시하지 못했습니다.": "The battle model could not be displayed."
+    "교전 모형을 표시하지 못했습니다.": "The battle model could not be displayed.",
+    "현재 교전 조건": "Current battle settings",
+    "설정 적용하고 다시 시작": "Apply settings and restart",
+    "유폭 연출 중에는 교전 조건을 바꿀 수 없습니다. 교전으로 돌아가서 변경하세요.": "Battle settings are locked during the explosion preview. Select Back to battle to edit them.",
+    "변경한 조건은 아직 적용되지 않았습니다. 설정 적용하고 다시 시작을 누르면 새 교전을 시작합니다.": "Your changes are pending. Select Apply settings and restart to begin a new battle.",
+    "위 조건으로 교전 중입니다. 조건을 바꾼 뒤 설정 적용하고 다시 시작을 누르세요.": "These settings are applied to the current battle. Edit them, then select Apply settings and restart."
   },
   "fragments": {
     "야마토와 아이오와의 가상 일대일 포격전. 부위별 피해가 화력과 속력에 영향을 줍니다. 피해 구획을 켜면 개념적인 기관실과 탄약고 배치를 볼 수 있습니다.": "A hypothetical one-on-one gunnery duel between Yamato and Iowa. Local damage affects firepower and speed. Turn on Damage cutaway to view the schematic machinery spaces and magazines.",
@@ -545,6 +550,23 @@
     "문": " guns",
     "탑": " turrets",
     "번": "",
-    "주포": "Main battery"
+    "주포": "Main battery",
+    "시정": "Visibility",
+    "맑음": "Clear",
+    "박무": "Haze",
+    "야간": "Night",
+    "기동": "Maneuvering",
+    "정비 대응": "Repair priority",
+    "균형 대응": "Balanced repairs",
+    "탄약고 설비 우선": "Prioritize magazine systems",
+    "설비 수리 중지": "Disable system repairs",
+    "유폭 위험": "Magazine explosion risk",
+    "기본": "Normal",
+    "높음 · 실험": "High · experimental",
+    "유폭 전파": "Explosion propagation",
+    "구획별": "Isolated magazines",
+    "연쇄 전파 · 실험": "Chain reaction · experimental",
+    "양측 명중률 보정": "Accuracy multiplier · both ships",
+    "시작 거리": "Starting range"
   }
 }
