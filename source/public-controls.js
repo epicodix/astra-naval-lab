@@ -23,6 +23,8 @@
     const publicDamageModel=document.createElement('span');
     publicDamageModel.setAttribute('data-public-damage-model','');
     publicAppliedSummary.appendChild(publicDamageModel);
+    const publicKinematics=document.createElement('span');publicKinematics.setAttribute('data-public-kinematics','');publicAppliedSummary.appendChild(publicKinematics);
+    const publicScaleNote=document.createElement('div');publicScaleNote.className='text-small text-muted';publicScaleNote.setAttribute('data-public-scale-note','');publicScaleNote.textContent='함선은 디테일이 보이도록 거리 대비 확대 표시됩니다. 1×는 시뮬레이션 1초를 실제 1초에 재생합니다.';
     const publicSummaryFields={};
     for(const key of publicSettingKeys){
       if(key==='encounterMode')continue;
@@ -41,7 +43,7 @@
     publicApplyButton.setAttribute('data-public-apply','');
     publicApplyButton.textContent='설정 적용하고 다시 시작';
     publicSettingsActions.append(publicSettingsNotice,publicApplyButton);
-    publicSettingsPanel.append(publicAppliedSummary,publicSettingsActions);
+    publicSettingsPanel.append(publicAppliedSummary,publicScaleNote,publicSettingsActions);
     root.querySelector('.viz-controls').after(publicSettingsPanel);
     const publicRawDisplayText=new WeakMap();
     function publicControlText(element,value){
@@ -77,6 +79,7 @@
     }
     function refreshPublicControls(){
       const pending=publicSettingsChanged(),applied=validatePublicSettings(config)||readPublicSettings();
+      publicControlText(publicKinematics,config.kinematicsModel==='si-drag'?'탄도 · 초속·감속·중력':'탄도 · 이전 교전 재현');
       publicControlText(publicDamageModel,config.damageModel==='energetic-crew'?'피해 모델 · 탄종·연료·인력':config.damageModel==='crew-vital'?'피해 모델 · 인력·손상통제':'피해 모델 · 이전 교전 재현');
       for(const input of publicConditionInputs)input.disabled=!!blastPreview;
       publicControlText(publicSummaryFields.rangeKm,applied.encounterMode==='maximum'?'최대 사거리 조우 · 42 km':'시작 거리 · '+applied.rangeKm+' km');
@@ -88,7 +91,7 @@
       publicControlText(publicSummaryFields.accuracyScale,'양측 명중률 보정 · '+applied.accuracyScale.toFixed(2)+'×');
       publicControlText(publicSummaryFields.yamatoAmmo,'야마토 탄종 · '+publicConditionLabels.yamatoAmmo[applied.yamatoAmmo]);
       publicControlText(publicSummaryFields.iowaAmmo,'아이오와 탄종 · '+publicConditionLabels.iowaAmmo[applied.iowaAmmo]);
-      publicControlText(publicSettingsNotice,blastPreview?'유폭 연출 중에는 교전 조건을 바꿀 수 없습니다. 교전으로 돌아가서 변경하세요.':pending?'변경한 조건은 아직 적용되지 않았습니다. 설정 적용하고 다시 시작을 누르면 새 교전을 시작합니다.':'위 조건으로 교전 중입니다. 조건을 바꾼 뒤 설정 적용하고 다시 시작을 누르세요.');
+      publicControlText(publicSettingsNotice,blastPreview?'유폭 연출 중에는 교전 조건을 바꿀 수 없습니다. 교전으로 돌아가서 변경하세요.':pending?'변경한 조건은 아직 적용되지 않았습니다. 설정 적용하고 다시 시작을 누르면 새 교전을 시작합니다.':config.kinematicsModel!=='si-drag'?'저장한 교전의 기존 탄도를 재현 중입니다. 새 교전을 누르면 개선된 탄도가 적용됩니다.':'위 조건으로 교전 중입니다. 조건을 바꾼 뒤 설정 적용하고 다시 시작을 누르세요.');
       publicApplyButton.disabled=!pending||!!blastPreview;
       publicApplyButton.hidden=!pending||!!blastPreview;
       publicSettingsPanel.dataset.pending=String(pending);

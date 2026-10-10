@@ -344,7 +344,14 @@
     "내부 관통으로 연료 배관 손상": "Fuel piping damaged by internal penetration",
     "연료 배관 손상 · 누출": "Fuel piping damaged · Leak",
     "고폭탄 표면 폭발": "HE surface burst",
-    "고폭탄 내부 폭발": "HE internal burst"
+    "고폭탄 내부 폭발": "HE internal burst",
+    "함선은 디테일이 보이도록 거리 대비 확대 표시됩니다. 1×는 시뮬레이션 1초를 실제 1초에 재생합니다.": "Ships are enlarged relative to distance to show their detail. At 1×, one simulation second plays in one real second.",
+    "탄도 · 초속·감속·중력": "Ballistics · muzzle speed, drag and gravity",
+    "탄도 · 이전 교전 재현": "Ballistics · saved battle model",
+    "저장한 교전의 기존 탄도를 재현 중입니다. 새 교전을 누르면 개선된 탄도가 적용됩니다.": "Replaying the saved battle with its original ballistics. Select New battle to use the updated trajectories.",
+    "현재 거리의 조준 해 · 실제 착탄 시간은 포구 위치·파도·산포·접촉 지점에 따라 달라집니다": "Aiming solution at the current range. Actual arrival depends on muzzle position, waves, dispersion and contact location.",
+    "함선 확대 표시": "Ships enlarged for detail",
+    "사격 조건 확보 중": "Waiting for a firing solution"
   },
   "fragments": {
     "야마토와 아이오와의 가상 일대일 포격전. 부위별 피해가 화력과 속력에 영향을 줍니다. 피해 구획을 켜면 개념적인 기관실과 탄약고 배치를 볼 수 있습니다.": "A hypothetical one-on-one gunnery duel between Yamato and Iowa. Local damage affects firepower and speed. Turn on Damage cutaway to view the schematic machinery spaces and magazines.",
@@ -702,6 +709,10 @@
     "내부 관통으로 연료 배관 손상": "Fuel piping damaged by internal penetration",
     "연료 배관 손상 · 누출": "Fuel piping damaged · Leak",
     "고폭탄 표면 폭발": "HE surface burst",
-    "고폭탄 내부 폭발": "HE internal burst"
+    "고폭탄 내부 폭발": "HE internal burst",
+    "초속 ": "Muzzle speed ",
+    "예상 비행 ": "Est. flight ",
+    "사격 조건 확보 중": "Waiting for a firing solution",
+    " m/s · 재생 속도 ": " m/s · Playback speed "
   }
 }
