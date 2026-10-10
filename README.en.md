@@ -27,6 +27,8 @@ v14 connects muzzle speed, air drag and gravity in one flight equation. It solve
 
 v15 adds per-ship **Repair focus / Balanced doctrine / Attack focus** orders during battle as a game experiment. The same available crew capacity is divided between gunnery and damage response. Attack focus accelerates loading and aiming corrections while weakening damage response. Its **×1.8 incoming critical risk** and **×1.5 outgoing central-penetration critical risk** are conditional relative multipliers for actual internal vital paths, not hit or instant-sinking probabilities. A salvo has a shared aiming error plus per-barrel range and lateral dispersion. Stable target tracking modestly improves first-shot confidence; only observed arrivals inform corrections. Maneuvering, smoke and fire-control damage reduce confidence. Orders affect the current and future battle; airborne shells retain their launch conditions. Orders persist and replay. Seeking backward and issuing a new order replaces the orders after that point with the new choice.
 
+v16 gives all **nine main guns independent loading and release times**. Each gun predicts the moving target from its currently observed velocity and smoothed turn rate, then iterates the aim point with that muzzle’s flight time. It never reads the target’s actual future route. It reduces the excessive shared salvo error and uses observed individual arrivals for gradual corrections. Feed, barrel and turret-crew damage restrict the affected guns; doctrine changes also rescale loading already in progress. The display shows each gun’s remaining loading time and readiness.
+
 Reference muzzle speeds: Yamato AP **780 m/s**, common shell (HE approximation) **805 m/s**; Iowa AP **762 m/s**, HC (HE) **819.9 m/s**. Sources: contemporary US Navy [Yamato report O-45(N), pp. 16–17](https://www.fischer-tropsch.org/primary_documents/gvt_reports/USNAVY/USNTMJ%20Reports/USNTMJ-200F-0384-0445%20Report%20O-45%20N.pdf) and [OP1188 firing tables, pp. 61–62](https://www.eugeneleeslover.com/ENGINEERING/OP1188/OP1188_Abridged_Range_Tables_1944.pdf).
 
 ## Run locally
@@ -55,7 +57,7 @@ The landing page's main start button opens a **42 km encounter**. Close-range ba
 
 Battles open paused. Play resumes the current battle. Editing battle conditions displays a pending-changes notice; **Apply settings and restart** or **New battle** uses those selections and a new random seed. **Replay this battle** retains the currently applied conditions and seed. Sea state, playback speed, camera, cutaway and trajectory controls apply immediately. Pending settings survive refreshes and language switching.
 
-Saved v11–v14 battles restore and replay with their original damage and ballistics. **New battle** or **Apply settings and restart** starts a new run with v15 aiming and operating choices, ballistics and damage models.
+Saved v11–v15 battles restore and replay with their original damage and ballistics. **New battle** or **Apply settings and restart** starts a new run with v16 individual guns and motion prediction, operating choices, ballistics and damage models.
 
 ## Edit and rebuild
 

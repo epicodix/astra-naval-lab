@@ -364,7 +364,17 @@
     "명령을 적용하지 못했습니다. 현재 교전은 유지됩니다.": "The order could not be applied. The current battle is preserved.",
     "예상 기계 산포이며 명중 확률이 아닙니다. 일제사 전체의 거리·이동 예측 오차는 별도로 적용됩니다.": "Estimated mechanical spread, not hit probability. Shared range and motion prediction errors are applied separately to each salvo.",
     "저장한 교전의 기존 계산을 재현 중입니다. 새 교전을 누르면 개선된 조준·운용 모델이 적용됩니다.": "Replaying the saved battle with its original calculations. New battle applies the updated aiming and doctrine model.",
-    "탄착 관측 · 조준 보정": "Observed impact pattern · Aiming correction"
+    "탄착 관측 · 조준 보정": "Observed impact pattern · Aiming correction",
+    "저장한 교전의 기존 계산을 재현 중입니다. 새 교전을 누르면 개별 함포 사격과 개선된 이동 예측이 적용됩니다.": "Replaying your saved battle with its original model. Select New battle to use individual guns and improved motion prediction.",
+    "주포 9문 개별 장전·사격 · 각 포는 발사 순간의 표적 속도·선회로 조준점을 다시 계산합니다.": "Nine main guns load and fire independently. Each gun updates its aim using the target’s observed speed and turn at release.",
+    "개별 장전 중": "Loading independently",
+    "개별 사격 대기": "Waiting to fire",
+    "포신 사용 불가": "Barrel unavailable",
+    "급탄 중단": "Ammunition feed stopped",
+    "탄착 관측 · 개별포 조준 보정": "Observed arrival · Individual gun correction",
+    "사격 준비": "Ready",
+    "사각 밖 대기": "Waiting for firing arc",
+    "예상 기계 산포이며 명중 확률이 아닙니다. 발사 시 표적의 속도·선회 예측 오차는 별도로 적용됩니다.": "Estimated mechanical dispersion, not a hit probability. Target speed and turn prediction errors are applied separately at release."
   },
   "fragments": {
     "야마토와 아이오와의 가상 일대일 포격전. 부위별 피해가 화력과 속력에 영향을 줍니다. 피해 구획을 켜면 개념적인 기관실과 탄약고 배치를 볼 수 있습니다.": "A hypothetical one-on-one gunnery duel between Yamato and Iowa. Local damage affects firepower and speed. Turn on Damage cutaway to view the schematic machinery spaces and magazines.",
@@ -742,6 +752,22 @@
     " · 장전 잔여 ": " · Reload remaining ",
     " s · 피격 치명 위험 ×": " s · Incoming critical risk ×",
     "탄착 관측 · 조준 보정": "Observed impact pattern · Aiming correction",
-    " 전환": " selected"
+    " 전환": " selected",
+    "함포반 개별 사격 · 준비 ": "Individual gun crews · Ready ",
+    "% · 관측탄 ": "% · Observed shots ",
+    "탑 · 좌 ": " turret · Left ",
+    " · 중 ": " · Center ",
+    " · 우 ": " · Right ",
+    "개별 장전 중": "Loading independently",
+    "개별 사격 대기": "Waiting to fire",
+    "포신 사용 불가": "Barrel unavailable",
+    "급탄 중단": "Ammunition feed stopped",
+    "탄착 관측 · 개별포 조준 보정": "Observed arrival · Individual gun correction",
+    "포탑 ": " turret ",
+    "1번포 개별 발사": "gun 1 fired independently",
+    "2번포 개별 발사": "gun 2 fired independently",
+    "3번포 개별 발사": "gun 3 fired independently",
+    "사격 준비": "Ready",
+    "사각 밖 대기": "Waiting for firing arc"
   }
 }
