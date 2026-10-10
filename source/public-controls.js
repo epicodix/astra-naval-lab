@@ -68,18 +68,18 @@
       settings.rangePolicy=rangePolicy;
       if(typeof candidate.accuracyScale!=='number'||!Number.isFinite(candidate.accuracyScale)||candidate.accuracyScale<.65||candidate.accuracyScale>1.5)return null;
       settings.accuracyScale=candidate.accuracyScale;
-      if(settings.encounterMode==='maximum')settings.rangeKm=42;
+      if(settings.encounterMode==='maximum')settings.rangeKm=candidate.rangeKm===42?42:36;
       else if([6,12,18,24].includes(candidate.rangeKm))settings.rangeKm=candidate.rangeKm;
       else return null;
       return settings;
     }
     function readPublicSettings(){
-      const candidate={encounterMode:encounterInput.value,rangeKm:Number(rangeInput.value),rangePolicy:rangePolicyInput.value,visibility:visibilityInput.value,accuracyScale:Number(accuracyInput.value),maneuverMode:maneuverInput.value,repairPolicy:repairInput.value,magazineRisk:magazineRiskInput.value,magazinePropagation:propagationInput.value,yamatoAmmo:yamatoAmmoInput.value,iowaAmmo:iowaAmmoInput.value};
-      return validatePublicSettings(candidate)||validatePublicSettings(config)||{encounterMode:'maximum',rangeKm:42,rangePolicy:'hold',visibility:'clear',accuracyScale:1,maneuverMode:'evasive',repairPolicy:'balanced',magazineRisk:'normal',magazinePropagation:'isolated',yamatoAmmo:'ap',iowaAmmo:'ap'};
+      const candidate={encounterMode:encounterInput.value,rangeKm:encounterInput.value==='maximum'?36:Number(rangeInput.value),rangePolicy:rangePolicyInput.value,visibility:visibilityInput.value,accuracyScale:Number(accuracyInput.value),maneuverMode:maneuverInput.value,repairPolicy:repairInput.value,magazineRisk:magazineRiskInput.value,magazinePropagation:propagationInput.value,yamatoAmmo:yamatoAmmoInput.value,iowaAmmo:iowaAmmoInput.value};
+      return validatePublicSettings(candidate)||validatePublicSettings(config)||{encounterMode:'maximum',rangeKm:36,rangePolicy:'hold',visibility:'clear',accuracyScale:1,maneuverMode:'evasive',repairPolicy:'balanced',magazineRisk:'normal',magazinePropagation:'isolated',yamatoAmmo:'ap',iowaAmmo:'ap'};
     }
     function publicSettingsChanged(){
       const pending=readPublicSettings(),applied=validatePublicSettings(config);
-      return !applied||publicSettingKeys.some(key=>key==='accuracyScale'?Math.abs(pending[key]-applied[key])>1e-8:pending[key]!==applied[key]);
+      return !applied||publicSettingKeys.some(key=>key==='rangeKm'&&pending.encounterMode==='maximum'&&applied.encounterMode==='maximum'?false:key==='accuracyScale'?Math.abs(pending[key]-applied[key])>1e-8:pending[key]!==applied[key]);
     }
     function refreshPublicControls(){
       const pending=publicSettingsChanged(),applied=validatePublicSettings(config)||readPublicSettings();
@@ -88,7 +88,7 @@
       const commandsBusy=doctrineBusy||battleBusy,conditionsDisabled=!!blastPreview||commandsBusy;
       publicSettingsPanel.inert=commandsBusy;
       for(const input of publicConditionInputs)input.disabled=conditionsDisabled;
-      publicControlText(publicSummaryFields.rangeKm,applied.encounterMode==='maximum'?'최대 사거리 조우 · 42 km':'시작 거리 · '+applied.rangeKm+' km');
+      publicControlText(publicSummaryFields.rangeKm,applied.encounterMode==='maximum'?(applied.rangeKm===36?'장거리 맞포격 · 36 km':'최대 사거리 조우 · 42 km'):'시작 거리 · '+applied.rangeKm+' km');
       const targetRange=Number(duel.initialConfig.targetRangeKm);
       publicControlText(publicSummaryFields.rangePolicy,config.maneuverRevision==='range-control-v18'?publicConditionLabels.rangePolicy[applied.rangePolicy]+(Number.isFinite(targetRange)&&targetRange>0?' 목표 · '+targetRange.toFixed(1)+' km':''):'항로 · 기존 항로');
       publicControlText(publicSummaryFields.visibility,'시정 · '+publicConditionLabels.visibility[applied.visibility]);
@@ -99,7 +99,7 @@
       publicControlText(publicSummaryFields.accuracyScale,'양측 명중률 보정 · '+applied.accuracyScale.toFixed(2)+'×');
       publicControlText(publicSummaryFields.yamatoAmmo,'야마토 탄종 · '+publicConditionLabels.yamatoAmmo[applied.yamatoAmmo]);
       publicControlText(publicSummaryFields.iowaAmmo,'아이오와 탄종 · '+publicConditionLabels.iowaAmmo[applied.iowaAmmo]);
-      publicControlText(publicSettingsNotice,blastPreview?'유폭 연출 중에는 교전 조건을 바꿀 수 없습니다. 교전으로 돌아가서 변경하세요.':battleBusy?'새 교전을 계산 중입니다. 준비되면 재생을 시작합니다.':doctrineBusy?'운용 명령을 적용 중입니다. 완료되면 교전 조건을 변경할 수 있습니다.':battleError?'새 교전을 준비하지 못했습니다. 설정을 다시 적용해 주세요.':pending?'변경한 조건은 아직 적용되지 않았습니다. 설정 적용하고 다시 시작을 누르면 새 교전을 시작합니다.':config.combatModel!=='fragile-maneuver'||config.maneuverRevision!=='range-control-v18'?'저장한 교전의 기존 계산을 재현 중입니다. 새 교전을 누르면 현재 피해 모델과 거리 유지·접근 항로가 적용됩니다.':'위 조건으로 교전 중입니다. 조건을 바꾼 뒤 설정 적용하고 다시 시작을 누르세요.');
+      publicControlText(publicSettingsNotice,blastPreview?'유폭 연출 중에는 교전 조건을 바꿀 수 없습니다. 교전으로 돌아가서 변경하세요.':battleBusy?'새 교전을 계산 중입니다. 준비되면 재생을 시작합니다.':doctrineBusy?'운용 명령을 적용 중입니다. 완료되면 교전 조건을 변경할 수 있습니다.':battleError?'새 교전을 준비하지 못했습니다. 설정을 다시 적용해 주세요.':pending?'변경한 조건은 아직 적용되지 않았습니다. 설정 적용하고 다시 시작을 누르면 새 교전을 시작합니다.':config.engagementModel!=='mutual-fire'?'저장한 교전의 기존 계산을 재현 중입니다. 새 교전을 누르면 거리 기반 조준 보정과 양함 사격권에서의 조우가 적용됩니다.':'위 조건으로 교전 중입니다. 조건을 바꾼 뒤 설정 적용하고 다시 시작을 누르세요.');
       publicApplyButton.disabled=!pending||conditionsDisabled;
       publicApplyButton.hidden=!pending||!!blastPreview;
       publicSettingsPanel.dataset.pending=String(pending);

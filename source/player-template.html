@@ -2147,7 +2147,7 @@ __ASTRA_SIMULATION_FRAGMENT__
   let viewportHeight = globalThis.innerHeight;
   const locationParams = new URLSearchParams(globalThis.location.search);
   const preset = locationParams.get("preset");
-  const publicMode = ["preview", "battle", "maximum", "blast", "he"].includes(preset) ? preset : "maximum";
+  const publicMode = ["preview", "duel", "battle", "maximum", "blast", "he"].includes(preset) ? preset : "duel";
   const freshEntry = locationParams.get("fresh") === "1";
   const stateParams = new URLSearchParams(locationParams);
   stateParams.delete("lang");
@@ -2376,7 +2376,7 @@ __ASTRA_SIMULATION_FRAGMENT__
     if (note) {
       const battle = displayState?.modelContent?.battle;
       if (battle && publicMode !== "preview") {
-        const startRange = battle.encounterMode === "maximum" ? 42 : Number(battle.rangeKm);
+        const startRange = Number(battle.rangeKm) || (battle.encounterMode === "maximum" ? 42 : NaN);
         const rangeLabel = Number.isFinite(startRange) && startRange > 0 ? `${startRange} km` : "—";
         const targetRange = Number(battle.targetRangeKm);
         const targetLabel = Number.isFinite(targetRange) && targetRange > 0
@@ -2389,17 +2389,17 @@ __ASTRA_SIMULATION_FRAGMENT__
           : `현재 교전 · 시작 거리 ${rangeLabel} · ${policy}. 계속 재생은 이 교전을 이어갑니다. 변경한 조건은 설정 적용하고 다시 시작으로 적용합니다.`;
       } else if (publicMode === "he") {
         note.textContent = english ? "6 km engagement · Both ships use high-explosive shells. Select Play to begin, or change each ship’s ammunition in the battle settings." : "6 km 교전 · 양측 고폭탄. 계속 재생을 누르거나 함선별 탄종을 바꿔 비교해보세요.";
-      } else if (publicMode === "battle" || publicMode === "maximum") {
+      } else if (publicMode === "duel" || publicMode === "battle" || publicMode === "maximum") {
         note.textContent = english
-          ? (publicMode === "maximum" ? "42 km maximum-range encounter" : "6 km close-range engagement") + " · Select Play to begin. New battle starts another run with a new seed."
-          : (publicMode === "maximum" ? "42 km 최대 사거리 조우" : "6 km 근거리 함포전") + " · 계속 재생을 누르면 시작합니다. 새 교전은 새로운 결과로 다시 시작합니다.";
+          ? (publicMode === "maximum" ? "36 km long-range exchange" : publicMode === "duel" ? "24 km gunfire exchange" : "6 km close-range engagement") + " · Select Play to begin. New battle starts another run with a new seed."
+          : (publicMode === "maximum" ? "36 km 장거리 맞포격" : publicMode === "duel" ? "24 km 맞포격" : "6 km 근거리 함포전") + " · 계속 재생을 누르면 시작합니다. 새 교전은 새로운 결과로 다시 시작합니다.";
       } else {
         note.textContent = english
           ? "Paused just before a magazine explosion. Select Play to watch at 0.25× speed. "
           : "유폭 직전의 교전입니다. 계속 재생을 누르면 0.25× 속도로 재생됩니다. ";
         const battleLink = document.createElement("a");
-        battleLink.href = "simulator.html?preset=maximum&fresh=1&lang=" + language;
-        battleLink.textContent = english ? "Start a 42 km battle →" : "42 km 장거리 교전 시작 →";
+        battleLink.href = "simulator.html?preset=duel&fresh=1&lang=" + language;
+        battleLink.textContent = english ? "Start a 24 km battle →" : "24 km 맞포격 시작 →";
         note.append(battleLink);
       }
     }

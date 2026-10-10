@@ -33,6 +33,8 @@ v17 is a faster-outcome game adjustment: strong impacts that actually penetrate 
 
 v18 separates initial encounter distance from range policy. **Hold engagement range** steers using the opponent's current position and separation; zigzagging remains centered on that target range. A 42 km encounter closes to roughly 36 km so both ships can fire, then holds long range. **Close while engaging** instead targets 6 km. Turning, inertia and propulsion damage make this a steering objective rather than an instantly fixed distance. When the same preset is open in several tabs, the most recently opened tab owns saving; older tabs cannot overwrite its settings.
 
+v19 computes shared aiming error in meters using actual range. It removes the kilometer-scale errors caused by the display hull enlargement factor while preserving visibility, fire-control, maneuver and observed-impact corrections. The main start preset is a **24 km gunfire exchange**; long-range encounters start at **36 km**, within both ships’ firing range. Saved 42 km battles replay their original version. Damage, penetration and physical contact rules are unchanged.
+
 Reference muzzle speeds: Yamato AP **780 m/s**, common shell (HE approximation) **805 m/s**; Iowa AP **762 m/s**, HC (HE) **819.9 m/s**. Sources: contemporary US Navy [Yamato report O-45(N), pp. 16–17](https://www.fischer-tropsch.org/primary_documents/gvt_reports/USNAVY/USNTMJ%20Reports/USNTMJ-200F-0384-0445%20Report%20O-45%20N.pdf) and [OP1188 firing tables, pp. 61–62](https://www.eugeneleeslover.com/ENGINEERING/OP1188/OP1188_Abridged_Range_Tables_1944.pdf).
 
 ## Run locally
@@ -51,17 +53,18 @@ A recent desktop browser with WebGL support is recommended. No npm install or bu
 
 | URL | Initial scene |
 | --- | --- |
+| `simulator.html?preset=duel&lang=en` | A 24 km gunfire exchange, with playback speed set to 4× |
 | `simulator.html?preset=battle&lang=en` | A 6 km engagement, with playback speed set to 4× |
 | `simulator.html?preset=blast&lang=en` | Just before a magazine explosion in a simulated battle, at 0.25× speed |
-| `simulator.html?preset=maximum&lang=en` | A 42 km encounter, with playback speed set to 4× |
+| `simulator.html?preset=maximum&lang=en` | A 36 km long-range encounter within both ships’ firing range, at 4× speed |
 | `simulator.html?preset=he&lang=en` | A 6 km encounter with both ships using HE, at 1× speed |
 | `simulator.html?preset=preview&lang=en` | The Yamato exterior preview used on the landing page |
 
-The landing page's main start button opens a **42 km encounter**. Close-range battles and explosion scenes have separate links. Fresh-start links use `fresh=1` to skip saved state; that flag is removed after loading, so later refreshes restore the current battle. Resume saved battle opens the saved long-range preset session. Without a preset, the simulator starts with a maximum-range encounter.
+The landing page's main start button opens a **24 km gunfire exchange**. The 36 km long-range preset, close-range battles and explosion scenes have separate links. Fresh-start links use `fresh=1` to skip saved state; that flag is removed after loading, so later refreshes restore the current battle. Resume saved battle opens the saved 24 km preset session. Without a preset, the simulator starts with a 24 km exchange.
 
 Battles open paused. Play resumes the current battle. Editing battle conditions displays a pending-changes notice; **Apply settings and restart** or **New battle** uses those selections and a new random seed. **Replay this battle** retains the currently applied conditions and seed. Sea state, playback speed, camera, cutaway and trajectory controls apply immediately. Pending settings survive refreshes and language switching.
 
-Saved v11–v17 battles restore and replay with their original damage, ballistics and routes. **New battle** or **Apply settings and restart** starts a new run with v18 range policy, vulnerable compartments, individual guns, operating choices and ballistics.
+Saved v11–v18 battles restore and replay with their original damage, ballistics and routes. **New battle** or **Apply settings and restart** starts a new run with v19 range-based aiming, range policy, vulnerable compartments, individual guns, operating choices and ballistics.
 
 ## Edit and rebuild
 

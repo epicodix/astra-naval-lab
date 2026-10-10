@@ -396,7 +396,9 @@
     "운용 명령을 적용 중입니다. 완료되면 교전 조건을 변경할 수 있습니다.": "Applying the doctrine order. You can change battle settings when it finishes.",
     "저장한 교전의 기존 계산을 재현 중입니다. 새 교전을 누르면 현재 피해 모델과 거리 유지·접근 항로가 적용됩니다.": "Replaying the saved battle with its original calculations. New battle applies the current damage model and hold-range or closing routes.",
     "새 교전을 계산 중입니다. 준비되면 재생을 시작합니다.": "Calculating the new battle. Playback begins when it is ready.",
-    "새 교전을 준비하지 못했습니다. 설정을 다시 적용해 주세요.": "The new battle could not be prepared. Please apply the settings again."
+    "새 교전을 준비하지 못했습니다. 설정을 다시 적용해 주세요.": "The new battle could not be prepared. Please apply the settings again.",
+    "장거리 맞포격 · 36 km": "Long-range exchange · 36 km",
+    "저장한 교전의 기존 계산을 재현 중입니다. 새 교전을 누르면 거리 기반 조준 보정과 양함 사격권에서의 조우가 적용됩니다.": "Replaying the saved battle with its original model. New battle applies range-based aiming and starts within both ships’ firing range."
   },
   "fragments": {
     "야마토와 아이오와의 가상 일대일 포격전. 부위별 피해가 화력과 속력에 영향을 줍니다. 피해 구획을 켜면 개념적인 기관실과 탄약고 배치를 볼 수 있습니다.": "A hypothetical one-on-one gunnery duel between Yamato and Iowa. Local damage affects firepower and speed. Turn on Damage cutaway to view the schematic machinery spaces and magazines.",
@@ -814,6 +816,7 @@
     "안전 거리 확보": "Opening to safe range",
     "항로 · 기존 항로": "Route · Legacy route",
     "접근 교전": "Close while engaging",
-    " 목표 · ": " target · "
+    " 목표 · ": " target · ",
+    "장거리 맞포격": "long-range exchange"
   }
 }
