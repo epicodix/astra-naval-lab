@@ -31,6 +31,8 @@ v16 gives all **nine main guns independent loading and release times**. Each gun
 
 v17 is a faster-outcome game adjustment: strong impacts that actually penetrate internal compartments damage local systems, crews and structure more quickly. Blocked and grazing hits do not receive that amplification. Loss of main steam or machinery crews can interrupt generator power and powered ammunition feeds; combined propulsion and feed failure leads to a faster combat-disable result. Maneuvering adds a minimum turn radius appropriate to the enlarged displayed hull, inertia and speed loss while turning. Knot speed, position and ballistics retain the same distance conversion. The evasion display shows the difference, in meters, between the enemy’s launch-time speed-and-turn forecast and the ship’s current position. Fleet camera zoom changes are smoothed.
 
+v18 separates initial encounter distance from range policy. **Hold engagement range** steers using the opponent's current position and separation; zigzagging remains centered on that target range. A 42 km encounter closes to roughly 36 km so both ships can fire, then holds long range. **Close while engaging** instead targets 6 km. Turning, inertia and propulsion damage make this a steering objective rather than an instantly fixed distance. When the same preset is open in several tabs, the most recently opened tab owns saving; older tabs cannot overwrite its settings.
+
 Reference muzzle speeds: Yamato AP **780 m/s**, common shell (HE approximation) **805 m/s**; Iowa AP **762 m/s**, HC (HE) **819.9 m/s**. Sources: contemporary US Navy [Yamato report O-45(N), pp. 16–17](https://www.fischer-tropsch.org/primary_documents/gvt_reports/USNAVY/USNTMJ%20Reports/USNTMJ-200F-0384-0445%20Report%20O-45%20N.pdf) and [OP1188 firing tables, pp. 61–62](https://www.eugeneleeslover.com/ENGINEERING/OP1188/OP1188_Abridged_Range_Tables_1944.pdf).
 
 ## Run locally
@@ -59,7 +61,7 @@ The landing page's main start button opens a **42 km encounter**. Close-range ba
 
 Battles open paused. Play resumes the current battle. Editing battle conditions displays a pending-changes notice; **Apply settings and restart** or **New battle** uses those selections and a new random seed. **Replay this battle** retains the currently applied conditions and seed. Sea state, playback speed, camera, cutaway and trajectory controls apply immediately. Pending settings survive refreshes and language switching.
 
-Saved v11–v16 battles restore and replay with their original damage and ballistics. **New battle** or **Apply settings and restart** starts a new run with v17 vulnerable compartments and maneuvering, individual guns, operating choices and ballistics.
+Saved v11–v17 battles restore and replay with their original damage, ballistics and routes. **New battle** or **Apply settings and restart** starts a new run with v18 range policy, vulnerable compartments, individual guns, operating choices and ballistics.
 
 ## Edit and rebuild
 

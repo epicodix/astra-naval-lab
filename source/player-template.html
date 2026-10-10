@@ -21,6 +21,7 @@ body{padding:18px 24px;max-width:1440px;margin-inline:auto}
 <body>
 <header class="player-nav"><a id="player-home" href="./">← ASTRA NAVAL LAB</a><span>BUILT WITH GPT ASTRA</span><nav class="player-languages" aria-label="Language"><a href="?lang=ko" lang="ko" data-language="ko">한국어</a><a href="?lang=en" lang="en" data-language="en">English</a></nav></header>
 <p class="player-note" id="preset-note">유폭 직전의 교전입니다. <strong>계속 재생</strong>을 누르면 0.25× 속도로 재생됩니다. <a href="simulator.html?preset=battle">처음부터 교전하기 →</a></p>
+<p class="player-note" id="saving-note" aria-live="polite" hidden></p>
 <iframe id="codex-visualization" sandbox="allow-scripts" referrerpolicy="no-referrer" title="야마토 × 아이오와 · Built with GPT Astra" data-srcdoc="&lt;!doctype html&gt;
 &lt;html lang=&quot;ko&quot; data-theme=&quot;dark&quot; data-visualize-standalone&gt;
 &lt;head&gt;
@@ -2154,10 +2155,17 @@ __ASTRA_SIMULATION_FRAGMENT__
   stateParams.delete("fresh");
   stateParams.sort();
   const stateSearch = stateParams.size ? "?" + stateParams.toString() : "";
-  const storageKey = `codex:visualization-widget-state-v2:${JSON.stringify([
+  const storageKey = `codex:visualization-widget-state-v3:${JSON.stringify([
     globalThis.location.pathname,
     stateSearch,
   ])}`;
+  const migrationStorageKey = `codex:visualization-widget-state-v2:${JSON.stringify([
+    globalThis.location.pathname,
+    stateSearch,
+  ])}`;
+  const savingOwnerKey = `${storageKey}:owner`;
+  const savingOwnerId = globalThis.crypto?.randomUUID?.()
+    ?? `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
   const legacyParams = new URLSearchParams(locationParams);
   legacyParams.delete("fresh");
   const legacyStorageKey = `codex:visualization-widget-state-v2:${JSON.stringify([
@@ -2208,12 +2216,14 @@ __ASTRA_SIMULATION_FRAGMENT__
     localStorage.setItem(probeKey, "1");
     localStorage.removeItem(probeKey);
     storage = localStorage;
+    if (publicMode !== "preview") storage.setItem(savingOwnerKey, savingOwnerId);
     if (freshEntry && publicMode !== "preview") {
       storage.removeItem(storageKey);
+      storage.removeItem(migrationStorageKey);
       storage.removeItem(legacyStorageKey);
     }
     const savedState = freshEntry || publicMode === "preview" ? null
-      : storage.getItem(storageKey) ?? storage.getItem(legacyStorageKey);
+      : storage.getItem(storageKey) ?? storage.getItem(migrationStorageKey) ?? storage.getItem(legacyStorageKey);
     if (savedState != null) {
       try {
         state = parseState(savedState);
@@ -2223,6 +2233,15 @@ __ASTRA_SIMULATION_FRAGMENT__
     }
   } catch {
     storage = null;
+  }
+  let displayState = state;
+  function hasSavingOwnership() {
+    if (storage == null || publicMode === "preview") return false;
+    try {
+      return storage.getItem(savingOwnerKey) === savingOwnerId;
+    } catch {
+      return false;
+    }
   }
   const initialGlobals = {
     widgetState: state,
@@ -2241,14 +2260,17 @@ __ASTRA_SIMULATION_FRAGMENT__
       }
       let ok = false;
       try {
-        if (storage != null && publicMode !== "preview") {
-          const state = parseState(data.state);
-          storage.setItem(storageKey, JSON.stringify(state));
+        const nextState = parseState(data.state);
+        displayState = nextState;
+        if (hasSavingOwnership()) {
+          storage.setItem(storageKey, JSON.stringify(nextState));
+          state = nextState;
           ok = true;
         }
       } catch {
         // Storage denial, quota limits, and invalid state return a failed receipt.
       }
+      renderLanguage(language, false, false);
       channel.port1.postMessage({
         type: "widget-state-result",
         id: data.id,
@@ -2325,11 +2347,12 @@ __ASTRA_SIMULATION_FRAGMENT__
   channel.port1.start();
   if (publicMode === "preview") document.documentElement.classList.add("public-preview");
   const note = document.getElementById("preset-note");
+  const savingNote = document.getElementById("saving-note");
   const requestedLanguage = locationParams.get("lang");
   let language = ["en", "ko"].includes(requestedLanguage) ? requestedLanguage
     : (globalThis.navigator.language?.startsWith("ko") ? "ko" : "en");
   const languageLinks = document.querySelectorAll("[data-language]");
-  function renderLanguage(next, updateUrl = false) {
+  function renderLanguage(next, updateUrl = false, syncFrame = true) {
     language = next === "en" ? "en" : "ko";
     const english = language === "en";
     document.documentElement.lang = language;
@@ -2351,10 +2374,19 @@ __ASTRA_SIMULATION_FRAGMENT__
       link.setAttribute("aria-current", String(link.dataset.language === language));
     }
     if (note) {
-      if (state?.modelContent?.battle && publicMode !== "preview") {
+      const battle = displayState?.modelContent?.battle;
+      if (battle && publicMode !== "preview") {
+        const startRange = battle.encounterMode === "maximum" ? 42 : Number(battle.rangeKm);
+        const rangeLabel = Number.isFinite(startRange) && startRange > 0 ? `${startRange} km` : "—";
+        const targetRange = Number(battle.targetRangeKm);
+        const targetLabel = Number.isFinite(targetRange) && targetRange > 0
+          ? (english ? ` target ${targetRange} km` : ` 목표 ${targetRange} km`) : "";
+        const policy = battle.maneuverRevision
+          ? (battle.rangePolicy === "close" ? (english ? "Close range" : "접근 교전") : (english ? "Hold range" : "거리 유지")) + targetLabel
+          : (english ? "Previous route model" : "기존 항로");
         note.textContent = english
-          ? "Your saved battle and viewpoint have been restored. Replay this battle starts from the beginning; New battle starts another run."
-          : "이 브라우저에 저장된 교전과 시점을 복원했습니다. 같은 교전 다시 보기로 처음부터 재생하거나, 새 교전으로 새로운 결과를 볼 수 있습니다.";
+          ? `Current battle · Starting range ${rangeLabel} · ${policy}. Play resumes this battle. Apply settings and restart applies your pending changes.`
+          : `현재 교전 · 시작 거리 ${rangeLabel} · ${policy}. 계속 재생은 이 교전을 이어갑니다. 변경한 조건은 설정 적용하고 다시 시작으로 적용합니다.`;
       } else if (publicMode === "he") {
         note.textContent = english ? "6 km engagement · Both ships use high-explosive shells. Select Play to begin, or change each ship’s ammunition in the battle settings." : "6 km 교전 · 양측 고폭탄. 계속 재생을 누르거나 함선별 탄종을 바꿔 비교해보세요.";
       } else if (publicMode === "battle" || publicMode === "maximum") {
@@ -2371,13 +2403,22 @@ __ASTRA_SIMULATION_FRAGMENT__
         note.append(battleLink);
       }
     }
-    frame.contentWindow?.postMessage({type: "astra-display-language", language}, "*");
+    if (savingNote) {
+      savingNote.hidden = storage == null || publicMode === "preview" || hasSavingOwnership();
+      savingNote.textContent = english
+        ? "Another tab owns saving for this preset. Changes in this tab stay local. Reload to open the latest saved battle and save from this tab."
+        : "다른 탭이 이 시작 모드의 저장을 맡고 있습니다. 이 탭의 변경은 저장되지 않습니다. 새로고침하면 최신 저장 교전을 열고 이 탭에서 저장합니다.";
+    }
+    if (syncFrame) frame.contentWindow?.postMessage({type: "astra-display-language", language}, "*");
   }
   for (const link of languageLinks) link.addEventListener("click", event => {
     event.preventDefault();
     renderLanguage(link.dataset.language, true);
   });
   renderLanguage(language);
+  globalThis.addEventListener("storage", event => {
+    if (event.key === savingOwnerKey || event.key == null) renderLanguage(language, false, false);
+  });
   const srcdoc = frame.dataset.srcdoc
     ?.replace('data-public-mode=""', 'data-public-mode="' + publicMode + '"')
     .replace('data-public-lang="ko"', 'data-public-lang="' + language + '"');

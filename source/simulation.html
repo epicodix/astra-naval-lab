@@ -1,12 +1,13 @@
 <div id="naval-duel" data-experiment="energetic-damage">
   <div class="viz-row"><span>야마토 × 아이오와 · 1944 가상 교전</span><span class="text-small text-muted" data-battle-number>교전 대기</span></div>
   <div class="viz-controls" aria-label="교전 조건">
-    <label class="form-label">조우 방식<select class="form-select" data-encounter data-tooltip="새 교전부터 적용"><option value="maximum" selected>최대 사거리 조우 · 42 km</option><option value="set-range">거리 지정</option></select></label>
+    <label class="form-label">초기 조우<select class="form-select" data-encounter data-tooltip="새 교전부터 적용"><option value="maximum" selected>최대 사거리 조우 · 42 km</option><option value="set-range">시작 거리 지정</option></select></label>
     <label class="form-label" data-range-field hidden>시작 거리<select class="form-select" data-range><option value="12">12 km</option><option value="18" selected>18 km</option><option value="24">24 km</option></select></label>
     <label class="form-label" data-ammo-field>야마토 탄종<select class="form-select" data-yamato-ammo data-tooltip="철갑탄은 내부 관통, 고폭탄은 착탄 폭발·파편·화재에 유리 · 새 교전부터 적용"><option value="ap">철갑탄 · AP</option><option value="he">고폭탄 · HE</option></select></label>
     <label class="form-label" data-ammo-field>아이오와 탄종<select class="form-select" data-iowa-ammo data-tooltip="철갑탄은 내부 관통, 고폭탄은 착탄 폭발·파편·화재에 유리 · 새 교전부터 적용"><option value="ap">철갑탄 · AP</option><option value="he">고폭탄 · HE</option></select></label>
     <label class="form-label">시정<select class="form-select" data-visibility><option value="clear">맑음</option><option value="haze">박무</option><option value="night">야간</option></select></label>
-    <label class="form-label">기동<select class="form-select" data-maneuver data-tooltip="새 교전부터 적용"><option value="evasive" selected>지그재그 기동</option><option value="steady">직선 항해</option></select></label>
+    <label class="form-label">기동<select class="form-select" data-maneuver data-tooltip="새 교전부터 적용"><option value="evasive" selected>지그재그 기동</option><option value="steady">안정 항해</option></select></label>
+    <label class="form-label" data-range-policy-field>거리 운용<select class="form-select" data-range-policy data-tooltip="거리를 유지하거나 의도적으로 접근합니다 · 새 교전부터 적용"><option value="hold" selected>교전 거리 유지</option><option value="close">접근하며 교전 · 6 km 목표</option></select></label>
     <label class="form-label">정비 대응<select class="form-select" data-repair-policy data-tooltip="양측에 동일하게 적용 · 새 교전부터 적용"><option value="balanced" selected>균형 대응</option><option value="magazine-priority">탄약고 설비 우선</option><option value="none">탄약고 설비 수리 중지</option></select></label>
     <label class="form-label">유폭 위험<select class="form-select" data-magazine-risk data-tooltip="양측에 동일하게 적용 · 새 교전부터 적용 · 높음은 장약 발화와 고열 유폭 위험을 높이는 게임 실험"><option value="normal" selected>기본</option><option value="high">높음 · 실험</option></select></label>
     <label class="form-label">유폭 전파<select class="form-select" data-magazine-propagation data-tooltip="양측에 동일하게 적용 · 새 교전과 연출 보기에 적용"><option value="isolated" selected>구획별</option><option value="chain">연쇄 전파 · 실험</option></select></label>
@@ -72,7 +73,7 @@
   #naval-duel .duel-sea{flex:0 1 140px;min-width:130px}
   #naval-duel .duel-stage{position:relative;width:100%;height:540px;overflow:hidden;touch-action:none}
   #naval-duel .duel-stage canvas{display:block;width:100%;height:100%;touch-action:none}
-  #naval-duel .duel-loading{position:absolute;inset:0;display:flex;justify-content:center;align-items:center}
+  #naval-duel .duel-loading{position:absolute;inset:0;display:flex;justify-content:center;align-items:center;z-index:3;background:rgba(5,15,21,.82);color:#fff}
   #naval-duel .duel-loading[hidden],#naval-duel .duel-sections[hidden],#naval-duel .duel-label[hidden],#naval-duel [data-return][hidden],#naval-duel [data-range-field][hidden],#naval-duel .duel-status[hidden],#naval-duel .duel-log[hidden],#naval-duel [aria-label="교전 거리"][hidden]{display:none}
   #naval-duel .duel-label{position:absolute;pointer-events:none;transform:translate(-50%,-100%);z-index:1}
   #naval-duel .duel-scale{position:absolute;left:8px;bottom:8px;pointer-events:none}
@@ -106,6 +107,7 @@
   const tacticsExperiment=kinematicsExperiment;
   const individualGunneryExperiment=tacticsExperiment;
   const fragileCombatExperiment=individualGunneryExperiment;
+  const rangeControlExperiment=fragileCombatExperiment;
   const crewDamageExperiment=root.dataset.experiment==='crew-damage'||energeticDamageExperiment;
   const vitalHitsExperiment=root.dataset.experiment==='vital-hits'||crewDamageExperiment,directFireExperiment=root.dataset.experiment==='direct-fire'||vitalHitsExperiment,ballisticsExperiment=root.dataset.experiment==='ballistics'||directFireExperiment;
   try{
@@ -1934,6 +1936,53 @@ function createDuelBallistics(T,models,ocean){
     const out={kind:'impact',time,pointWorld:world.toArray(),pointLocal:local.toArray(),normalWorld:normalWorld.toArray(),normalLocal:normalLocal.toArray(),pose:{position:frameAt.ship.position.slice(),heading:frameAt.ship.heading,renderPosition:frameAt.ship.renderPosition.slice(),renderQuaternion:frameAt.ship.renderQuaternion.slice(),seaMotion:{...frameAt.ship.seaMotion},flooding:frameAt.ship.renderFlooding,listDeg:frameAt.ship.renderListDeg},face:Math.abs(normalLocal.y)>.55?'deck':'side',zoneHint:main?'turret'+'ABC'[component.ti]:bridge?'bridge':null};
     if(main){out.turretIndex=component.ti;const turret=regions[shot.target].find(c=>c.kind==='turret'&&c.ti===component.ti);out.turretLocal=local.clone().applyMatrix4(componentMatrix(turret,frameAt.art).invert()).toArray();}return out;
   }
+  const movingBounds=new WeakMap(),pathExtrema=new WeakMap(),rotationRadii=new WeakMap();
+  function rotationRadius(component){
+    if(rotationRadii.has(component))return rotationRadii.get(component);
+    const barrel=component.kind==='barrel'||component.kind==='secondaryBarrel',scale=barrel?component.barrelScale:component.scale,vertices=component.bvh.positions;
+    let radius=0;
+    for(let i=0;i<vertices.length;i+=3)radius=Math.max(radius,Math.hypot(vertices[i]*scale.x,vertices[i+1]*scale.y,vertices[i+2]*scale.z));
+    // Qmount and Qbarrel preserve length. The triangle inequality covers all
+    // tube pitches/yaw offsets, then the mount's largest scale covers S*Q.
+    if(barrel)radius=component.rest.clone().multiply(component.scale).length()+Math.max(Math.abs(component.scale.x),Math.abs(component.scale.y),Math.abs(component.scale.z))*radius;
+    rotationRadii.set(component,radius);return radius;
+  }
+  function articulatedBounds(id,state0,state1){
+    let pairs=movingBounds.get(state0);if(!pairs){pairs=new WeakMap();movingBounds.set(state0,pairs);}
+    let bounds=pairs.get(state1);if(!bounds){bounds={};pairs.set(state1,bounds);}if(bounds[id])return bounds[id];
+    const a=state0.ships[id],b=state1.ships[id],heading=(a.heading+b.heading)*.5,c=Math.cos(heading),s=Math.sin(heading),
+      pitch=.034+.0055,roll=Math.max(Math.PI/4,Math.abs(a.listDeg||0)*Math.PI/180,Math.abs(b.listDeg||0)*Math.PI/180)+.043+.055+.019,
+      cp=Math.cos(pitch),sp=Math.sin(pitch),cr=Math.cos(Math.min(Math.PI/2,roll)),sr=Math.sin(Math.min(Math.PI/2,roll));
+    bounds[id]=regions[id].map(component=>{
+      if(component.kind==='static')return null;
+      const p=component.pivot,x=Math.abs(p.x),y=Math.abs(p.y),z=Math.abs(p.z),
+        tilt=roll>Math.PI/2?2*p.length():Math.hypot(x*(1-cp)+sp*(y+z),x*sp+y*(1-cp*cr)+z*sr,y*sr+z*(1-cr)),
+        swing=2*Math.hypot(p.x,p.z)*Math.sin(Math.min(Math.PI,Math.abs(b.heading-a.heading)*.5+.0015)*.5),
+        mountScale=Math.max(Math.abs(component.scale.x),Math.abs(component.scale.y),Math.abs(component.scale.z)),tubeScale=component.barrelScale?Math.max(Math.abs(component.barrelScale.x),Math.abs(component.barrelScale.y),Math.abs(component.barrelScale.z)):1,
+        radius=rotationRadius(component)+tilt+swing+.01*Math.max(1,mountScale*tubeScale),px=c*p.x+s*p.z,pz=-s*p.x+c*p.z;
+      // Enclose the whole interval, including all current pose-resolver caps:
+      // rough heave 1.32, flood draft 1.6, impact XY/Z .32 and Y .18. Using
+      // the full 45-degree list cap also covers quarter-second contact anchors.
+      return {min:[Math.min(a.position[0],b.position[0])+px-radius-.32,Math.min(a.position[1],b.position[1])+p.y-radius-1.32-1.6-.18,Math.min(a.position[2],b.position[2])+pz-radius-.32],
+        max:[Math.max(a.position[0],b.position[0])+px+radius+.32,Math.max(a.position[1],b.position[1])+p.y+radius+1.32+.18,Math.max(a.position[2],b.position[2])+pz+radius+.32]};
+    });return bounds[id];
+  }
+  function pathBounds(path,lo,hi,p0,p1){
+    let extrema=pathExtrema.get(path);
+    if(!extrema){
+      extrema=[];const k=path.dragPerSecond;
+      for(let axis=0;axis<3;axis++){
+        const v=path.initialVelocitySI[axis],a=path.accelerationSI[axis];let age;
+        if(Math.abs(k)<1e-12){if(a!==0)age=-v/a;}
+        else{const decay=-a/(k*v-a);if(decay>0&&decay<=1)age=-Math.log(decay)/k;}
+        if(Number.isFinite(age)&&age>=0)extrema.push({axis,time:path.launchTime+age});
+      }pathExtrema.set(path,extrema);
+    }
+    const min=[Math.min(p0.x,p1.x),Math.min(p0.y,p1.y),Math.min(p0.z,p1.z)],max=[Math.max(p0.x,p1.x),Math.max(p0.y,p1.y),Math.max(p0.z,p1.z)];
+    for(const e of extrema)if(e.time>lo&&e.time<hi){const value=sample(path,e.time).getComponent(e.axis);min[e.axis]=Math.min(min[e.axis],value);max[e.axis]=Math.max(max[e.axis],value);}
+    return {min,max};
+  }
+  function boundsOverlap(a,b){for(let axis=0;axis<3;axis++)if(a.max[axis]<b.min[axis]||a.min[axis]>b.max[axis])return false;return true;}
   function sweep(shot,t0,t1,state0,state1,ctx={}){
     stats.sweeps++;const path=shot.ballisticPath;if(!path||t1<=t0||t1<=path.launchTime)return null;
     t0=Math.max(t0,path.launchTime);const p0=sample(path,t0),p1=sample(path,t1),target=shot.target,a=state0.ships[target],b=state1.ships[target];
@@ -1943,18 +1992,24 @@ function createDuelBallistics(T,models,ocean){
     const nearTarget=Math.max(p0.x,p1.x)>=Math.min(a.position[0],b.position[0])-90&&Math.min(p0.x,p1.x)<=Math.max(a.position[0],b.position[0])+90&&Math.max(p0.z,p1.z)>=Math.min(a.position[2],b.position[2])-90&&Math.min(p0.z,p1.z)<=Math.max(a.position[2],b.position[2])+90&&Math.min(p0.y,p1.y)<Math.max(a.position[1],b.position[1])+45;
     let meshContact=null;
     if(nearTarget&&!(a.sunk||a.structuralFailure)){
+      const envelopes=ctx.maneuverRevision==='range-control-v18'&&ctx.kinematicsModel==='si-drag'&&path.version===2?articulatedBounds(target,state0,state1):null;
       const end=waterTime??t1,n=Math.max(1,Math.ceil((end-t0)/.04));
       for(let i=0;i<n&&!meshContact;i++){
-        const lo=t0+(end-t0)*i/n,hi=t0+(end-t0)*(i+1)/n,world0=sample(path,lo),world1=sample(path,hi),f0=frame(target,interpolate(state0,state1,lo),lo,ctx),f1=frame(target,interpolate(state0,state1,hi),hi,ctx);
+        const lo=t0+(end-t0)*i/n,hi=t0+(end-t0)*(i+1)/n,world0=sample(path,lo),world1=sample(path,hi),box=envelopes?pathBounds(path,lo,hi,world0,world1):null,
+          possible=envelopes?envelopes.map(bound=>!bound||boundsOverlap(box,bound)):null,articulated=!possible||possible.some((yes,index)=>index>0&&yes),
+          f0=frame(target,interpolate(state0,state1,lo),lo,ctx,articulated),f1=frame(target,interpolate(state0,state1,hi),hi,ctx,articulated);
+        if(envelopes&&!articulated)stats.lazyArticulationFrames=(stats.lazyArticulationFrames||0)+2;
         let best=null;
-        for(const component of regions[target]){
+        for(let ci=0;ci<regions[target].length;ci++){
+          const component=regions[target][ci];
+          if(possible&&!possible[ci]){stats.articulatedBoundsSkipped=(stats.articulatedBoundsSkipped||0)+1;continue;}
           const m0=componentMatrix(component,f0.art).premultiply(f0.matrix),m1=componentMatrix(component,f1.art).premultiply(f1.matrix),local0=world0.clone().applyMatrix4(m0.clone().invert()),local1=world1.clone().applyMatrix4(m1.clone().invert()),hit=intersect(component.bvh,local0,local1);
           if(!hit)continue;
           const positions=component.bvh.positions,offset=hit.triangle*9,triangleA=new T.Vector3(positions[offset],positions[offset+1],positions[offset+2]);
-          const signed=time=>{const f=frame(target,interpolate(state0,state1,time),time,ctx),m=componentMatrix(component,f.art).premultiply(f.matrix);return sample(path,time).applyMatrix4(m.invert()).sub(triangleA).dot(hit.normal);};
+          const signed=time=>{const f=frame(target,interpolate(state0,state1,time),time,ctx,!envelopes||component.kind!=='static'),m=componentMatrix(component,f.art).premultiply(f.matrix);return sample(path,time).applyMatrix4(m.invert()).sub(triangleA).dot(hit.normal);};
           let left=lo,right=hi,sl=signed(left),sr=signed(right),time=lo+(hi-lo)*hit.fraction;
           if(sl*sr<=0){for(let j=0;j<24;j++){const mid=(left+right)/2,sm=signed(mid);if(sl*sm<=0){right=mid;sr=sm;}else{left=mid;sl=sm;}}time=(left+right)/2;}
-          const f=frame(target,interpolate(state0,state1,time),time,ctx),inv=componentMatrix(component,f.art).premultiply(f.matrix).invert(),point=sample(path,time).applyMatrix4(inv),normal=hit.normal;
+          const f=frame(target,interpolate(state0,state1,time),time,ctx,!envelopes||component.kind!=='static'),inv=componentMatrix(component,f.art).premultiply(f.matrix).invert(),point=sample(path,time).applyMatrix4(inv),normal=hit.normal;
           if(Math.abs(point.clone().sub(triangleA).dot(normal))>.004)continue;
           const triangleB=new T.Vector3(positions[offset+3],positions[offset+4],positions[offset+5]),triangleC=new T.Vector3(positions[offset+6],positions[offset+7],positions[offset+8]);
           const closest=new T.Triangle(triangleA,triangleB,triangleC).closestPointToPoint(point,new T.Vector3());if(closest.distanceTo(point)>.004)continue;
@@ -1988,6 +2043,7 @@ function createNavalDuel(options = {}) {
   const salvoPressure = siDragKinematics && options.tacticalModel === 'salvo-pressure';
   const independentGunnery = salvoPressure && options.fireControlModel === 'per-gun';
   const fragileManeuver = independentGunnery && options.combatModel === 'fragile-maneuver';
+  const rangeControl = fragileManeuver && options.maneuverRevision === 'range-control-v18';
   const tacticalModes = ['repair', 'balanced', 'attack'];
   const tacticalProfiles = {repair: {reloadMultiplier: 1.28, damageControlMultiplier: 1.25, incomingCriticalMultiplier: .85, outgoingCriticalMultiplier: 1, dcShare: .8125}, balanced: {reloadMultiplier: 1, damageControlMultiplier: 1, incomingCriticalMultiplier: 1, outgoingCriticalMultiplier: 1, dcShare: .65}, attack: {reloadMultiplier: .80, damageControlMultiplier: .70, incomingCriticalMultiplier: 1.8, outgoingCriticalMultiplier: 1.5, dcShare: .455}};
   const crewVitalDamage = (options.damageModel === 'crew-vital' || energeticDamage) && rangeAwareGunnery;
@@ -2006,7 +2062,7 @@ function createNavalDuel(options = {}) {
     accuracyScale: clamp(Number.isFinite(Number(options.accuracyScale)) ? Number(options.accuracyScale) : 1, .65, 1.5),
     maneuverMode: options.maneuverMode === 'steady' ? 'steady' : 'evasive',
     encounterMode: options.encounterMode === 'set-range' ? 'set-range' : 'maximum',
-    modelRevision: fragileManeuver ? 'naval-duel-17' : independentGunnery ? 'naval-duel-16' : salvoPressure ? 'naval-duel-15' : siDragKinematics ? 'naval-duel-14' : energeticDamage ? 'naval-duel-13' : crewVitalDamage ? 'naval-duel-12' : vitalPathDamage ? 'naval-duel-11' : rangeAwareGunnery ? 'naval-duel-10' : ballistics ? 'naval-duel-9' : legacyDamage ? 'naval-duel-4' : chainPropagation ? 'naval-duel-8' : criticalDamage ? 'naval-duel-7' : cascadeDamage ? 'naval-duel-6' : 'naval-duel-5',
+    modelRevision: rangeControl ? 'naval-duel-18' : fragileManeuver ? 'naval-duel-17' : independentGunnery ? 'naval-duel-16' : salvoPressure ? 'naval-duel-15' : siDragKinematics ? 'naval-duel-14' : energeticDamage ? 'naval-duel-13' : crewVitalDamage ? 'naval-duel-12' : vitalPathDamage ? 'naval-duel-11' : rangeAwareGunnery ? 'naval-duel-10' : ballistics ? 'naval-duel-9' : legacyDamage ? 'naval-duel-4' : chainPropagation ? 'naval-duel-8' : criticalDamage ? 'naval-duel-7' : cascadeDamage ? 'naval-duel-6' : 'naval-duel-5',
     damageModel: energeticDamage ? 'energetic-crew' : crewVitalDamage ? 'crew-vital' : vitalPathDamage ? 'vital-path' : legacyDamage ? 'legacy' : criticalDamage ? 'critical' : cascadeDamage ? 'cascade' : 'equipment', repairPolicy,
     abstraction: 'game',
     simulationStep: 1
@@ -2017,6 +2073,7 @@ function createNavalDuel(options = {}) {
   if (siDragKinematics) initialConfig.kinematicsModel = 'si-drag';
   if (independentGunnery) initialConfig.fireControlModel = 'per-gun';
   if (fragileManeuver) initialConfig.combatModel = 'fragile-maneuver';
+  if (rangeControl) Object.assign(initialConfig, {maneuverRevision: 'range-control-v18', rangePolicy: options.rangePolicy === 'close' ? 'close' : 'hold'});
   if (salvoPressure) Object.assign(initialConfig, {tacticalModel: 'salvo-pressure', yamatoDoctrine: tacticalModes.includes(options.yamatoDoctrine) ? options.yamatoDoctrine : 'balanced', iowaDoctrine: tacticalModes.includes(options.iowaDoctrine) ? options.iowaDoctrine : 'balanced',
     tacticalOrders: (Array.isArray(options.tacticalOrders) ? options.tacticalOrders : []).map((order, index) => ({time: Number(order?.time), ship: order?.ship, mode: order?.mode, index})).filter(order => Number.isFinite(order.time) && order.time >= 0 && ['yamato', 'iowa'].includes(order.ship) && tacticalModes.includes(order.mode)).sort((a, b) => a.time - b.time || a.index - b.index).map(({time, ship, mode}) => ({time, ship, mode}))});
   if (energeticDamage) Object.assign(initialConfig, {yamatoAmmo: options.yamatoAmmo === 'he' ? 'he' : 'ap', iowaAmmo: options.iowaAmmo === 'he' ? 'he' : 'ap'});
@@ -2090,6 +2147,12 @@ function createNavalDuel(options = {}) {
   if (maximumEncounter) initialConfig.rangeKm = initialConfig.initialRangeKm;
   initialConfig.durationSeconds = timeLimit;
   initialConfig.displayUnitsPerMeter = geometricRange ? displayUnitsPerMeter : null;
+  const targetRangeKm = rangeControl ? initialConfig.rangePolicy === 'close' ? 6 : maximumEncounter ? Math.min(36, specs.yamato.maxGunRangeKm, specs.iowa.maxGunRangeKm) : initialConfig.initialRangeKm : null;
+  if (rangeControl) initialConfig.targetRangeKm = targetRangeKm;
+  const rangeApproachLimit = 28 * Math.PI / 180, rangeResponseSeconds = 90;
+  const initialRangeBrakingSeconds = rangeControl ? .45 / Math.max(1e-7, Math.min(...ids.map(id => motionTurnLimit({id, speedKnots: specs[id].speed})))) : 0;
+  const rangeWeavePeriod = rangeControl ? Math.max(120, Math.PI * 2 * (2 * Math.PI / 180) / (.45 / initialRangeBrakingSeconds) * 2) : 0;
+  const initialRangeCorrection = rangeControl ? Math.asin(clamp((initialConfig.initialRangeKm - targetRangeKm) * 1000 * displayUnitsPerMeter / ((rangeResponseSeconds + initialRangeBrakingSeconds) * (specs.yamato.speed + specs.iowa.speed) * movementScale), -Math.sin(rangeApproachLimit), Math.sin(rangeApproachLimit))) : 0;
   const angleDelta = (a, b) => Math.atan2(Math.sin(a - b), Math.cos(a - b));
   const zoneIds = ['bow', 'stern', 'hull', 'bridge', 'engine', 'boiler', 'turretA', 'turretB', 'turretC', 'magazineA', 'magazineB', 'magazineC'];
   const zoneLabels = {bow: '선수', stern: '선미', hull: '측면 선체', bridge: '함교·사격 통제', engine: '기관 구획', boiler: '보일러 구획', turretA: '1번 주포탑', turretB: '2번 주포탑', turretC: '3번 주포탑', magazineA: '1번 탄약고 주변', magazineB: '2번 탄약고 주변', magazineC: '3번 탄약고 주변'};
@@ -2109,7 +2172,7 @@ function createNavalDuel(options = {}) {
     for (const zone of zoneIds) zones[zone] = {health: 1, fire: 0, flooding: 0, heat: 0, breach: 0};
     const initialPosition = maximumEncounter ? (id === 'yamato' ? [-4000 * displayUnitsPerMeter, 0, -initialTacticalZ * displayUnitsPerMeter] : [4000 * displayUnitsPerMeter, 0, initialTacticalZ * displayUnitsPerMeter]) : (id === 'yamato' ? [-25, 0, -70] : [25, 0, 70]);
     const lineHeading = Math.atan2(-2 * initialTacticalZ, 8000);
-    const initialHeading = maximumEncounter ? lineHeading + Math.PI / 6 + (id === 'iowa' ? Math.PI : 0) : id === 'yamato' ? 0 : Math.PI;
+    const initialHeading = rangeControl ? (maximumEncounter ? lineHeading : Math.atan2(-140, 50)) + Math.PI / 2 + (id === 'yamato' ? -initialRangeCorrection : initialRangeCorrection) : maximumEncounter ? lineHeading + Math.PI / 6 + (id === 'iowa' ? Math.PI : 0) : id === 'yamato' ? 0 : Math.PI;
     ships[id] = {
       id, name: specs[id].name, speedKnots: specs[id].speed, flooding: 0, fire: 0, listDeg: 0,
       integrity: 1, engine: 1, steering: 1, fireControl: 1, activeGuns: 9,
@@ -2118,7 +2181,7 @@ function createNavalDuel(options = {}) {
       tacticalPosition: geometricRange ? initialPosition.map(v => v / displayUnitsPerMeter) : null,
       maxGunRangeKm: specs[id].maxGunRangeKm, maxFlightSeconds: specs[id].maxFlightSeconds,
       velocity: [Math.cos(initialHeading) * specs[id].speed * movementScale, 0, -Math.sin(initialHeading) * specs[id].speed * movementScale], yawRate: 0,
-      maneuver: {name: initialConfig.maneuverMode === 'steady' ? '직선 항해' : '지그재그 기동', phase: 0, turnRateDeg: 0, courseOffsetDeg: 0, evading: false, trackingErrorUnits: 0, evasionEffect: 0, selfAimPenalty: 0},
+      maneuver: {name: rangeControl ? initialConfig.maneuverMode === 'steady' ? '안정 항해' : '완만 기동' : initialConfig.maneuverMode === 'steady' ? '직선 항해' : '지그재그 기동', phase: 0, turnRateDeg: 0, courseOffsetDeg: 0, evading: false, trackingErrorUnits: 0, evasionEffect: 0, selfAimPenalty: 0},
       zones, status: '교전 준비', sunk: false, defeated: false, criticalDamage: false, sinking: null,
       hits: 0, penetrations: 0, shots: 0, shotsFired: 0, hitsReceived: 0, penetrationsReceived: 0, hitRate: 0, evadedShots: 0,
       _salvo: 0, _nextSalvo: 3 + random() * 3, _learning: 0, _bias: gaussian(), _imbalance: 0, _noGunsTime: 0,
@@ -2196,6 +2259,7 @@ function createNavalDuel(options = {}) {
       ship._surgeKnots = specs[id].speed; ship._actualRudder = 0;
       ship._weavePeriod = Math.max(ship._weavePeriod, Math.PI * 2 * ship._weaveAmplitude / Math.max(1e-7, motionTurnLimit(ship)) * 1.3);
       Object.assign(ship.maneuver, {trackingErrorMeters: 0, incomingShells: 0, turnSpeedLoss: 0, rudderPosition: 0, speedTargetKnots: specs[id].speed, minTurnRadiusUnits: specs[id].length});
+      if (rangeControl) Object.assign(ship.maneuver, {rangePolicy: initialConfig.rangePolicy, targetRangeKm, rangeErrorKm: initialConfig.initialRangeKm - targetRangeKm, desiredClosingSpeedKnots: (specs.yamato.speed + specs.iowa.speed) * Math.sin(initialRangeCorrection)});
     }
     if (chainPropagation) ships[id]._chainEdges = new Set();
     ships[id].status = '교전 준비';
@@ -2424,11 +2488,30 @@ function createNavalDuel(options = {}) {
     }
     return error;
   }
-  function advanceFragileMotionStep(ship, dt, nextTime) {
+  function rangeControlPlan(time) {
+    const y = ships.yamato, i = ships.iowa, dx = i.position[0] - y.position[0], dz = i.position[2] - y.position[2];
+    const distance = Math.max(1e-7, Math.hypot(dx, dz)), error = distance - targetRangeKm * 1000 * displayUnitsPerMeter;
+    const closing = -((i.velocity[0] - y.velocity[0]) * dx + (i.velocity[2] - y.velocity[2]) * dz) / distance;
+    const usableTurnRates = ids.filter(id => !ships[id].sunk && ships[id].speedKnots > .2 && ships[id].steering > .1).map(id => motionTurnLimit(ships[id]) * ships[id].steering);
+    const turnRate = Math.max(1e-7, usableTurnRates.length ? Math.min(...usableTurnRates) : 1e-7);
+    // Braking starts while the displayed ships still have enough time to turn.
+    // A common broadside course avoids two independent counter-orbit tracks.
+    const brakingSeconds = Math.min(900, .45 / turnRate), totalSpeed = (y.speedKnots + i.speedKnots) * movementScale;
+    const desiredClosing = clamp((error - closing * brakingSeconds) / rangeResponseSeconds, -totalSpeed * Math.sin(rangeApproachLimit), totalSpeed * Math.sin(rangeApproachLimit));
+    const correction = totalSpeed > 1e-7 ? Math.asin(clamp(desiredClosing / totalSpeed, -1, 1)) : 0;
+    const waveAmplitude = 2 * Math.PI / 180;
+    const weave = initialConfig.maneuverMode === 'evasive' ? Math.sin(time * Math.PI * 2 / rangeWeavePeriod + y._weavePhase) * waveAmplitude : 0;
+    const commonHeading = Math.atan2(-dz, dx) + Math.PI / 2 + weave;
+    const label = Math.abs(error) < Math.max(50 * displayUnitsPerMeter, targetRangeKm * 1000 * displayUnitsPerMeter * .015) ? initialConfig.rangePolicy === 'close' ? '안전 거리 유지' : '거리 유지 · 측면 항해' : error > 0 ? initialConfig.rangePolicy === 'close' ? '근거리 접근' : '목표 거리 접근' : '안전 거리 확보';
+    return {yamatoHeading: commonHeading - correction, iowaHeading: commonHeading + correction, label, desiredClosingSpeedKnots: desiredClosing / movementScale};
+  }
+  function advanceFragileMotionStep(ship, dt, nextTime, rangePlan) {
     const id = ship.id, spec = specs[id], beforeSpeed = ship._surgeKnots;
     const oldRate = ship.yawRate, beforeLimit = motionTurnLimit(ship);
     let desired = ship.heading, label = '직선 항해';
-    if (maximumEncounter) {
+    if (rangeControl) {
+      desired = rangePlan[id + 'Heading']; label = rangePlan.label;
+    } else if (maximumEncounter) {
       const other = ships[id === 'yamato' ? 'iowa' : 'yamato'];
       const lineHeading = Math.atan2(-(other.position[2] - ship.position[2]), other.position[0] - ship.position[0]);
       let phase = clamp((nextTime - 270) / 90); phase = phase * phase * (3 - 2 * phase);
@@ -2479,6 +2562,7 @@ function createNavalDuel(options = {}) {
       trackingErrorUnits: error, trackingErrorMeters: error / displayUnitsPerMeter, incomingShells: ship._incomingTracks.length,
       evasionEffect: 0, selfAimPenalty: clamp(Math.abs(ship._actualRudder) * .18 + ship._aimAccelerationPenalty, 0, .4),
       turnSpeedLoss, rudderPosition: ship._actualRudder, speedTargetKnots: targetSpeed, minTurnRadiusUnits: spec.length};
+    if (rangeControl) Object.assign(ship.maneuver, {rangePolicy: initialConfig.rangePolicy, targetRangeKm, rangeErrorKm: currentRangeKm() - targetRangeKm, desiredClosingSpeedKnots: rangePlan.desiredClosingSpeedKnots});
   }
   function syncMotionDamage(ship) {
     if (fragileManeuver) {
@@ -2505,9 +2589,10 @@ function createNavalDuel(options = {}) {
   function advanceMotionKernel(time) {
     while (motionTime < time - 1e-9) {
       const dt = Math.min(.25, time - motionTime), nextTime = motionTime + dt;
+      const rangePlan = rangeControl ? rangeControlPlan(nextTime) : null;
       for (const id of ids) {
         const ship = ships[id], spec = specs[id];
-        if (fragileManeuver) { advanceFragileMotionStep(ship, dt, nextTime); continue; }
+        if (fragileManeuver) { advanceFragileMotionStep(ship, dt, nextTime, rangePlan); continue; }
         ship.speedKnots = ship.sunk ? 0 : spec.speed * Math.pow(ship.engine, .62) * (1 - .73 * ship.flooding) * (.7 + .3 * ship.steering);
         const speed = ship.speedKnots * movementScale;
         const turnLimit = .92 * (spec.speed / 27) * (110 / spec.length) * Math.PI / 180 * ship.steering * Math.min(1, ship.speedKnots / spec.speed * 1.35);
@@ -2564,6 +2649,7 @@ function createNavalDuel(options = {}) {
           evasionEffect: initialConfig.maneuverMode === 'evasive' ? clamp(error / (spec.beam * .5 + error)) : 0,
           selfAimPenalty: clamp(steeringCost, 0, .4)};
       }
+      if (rangeControl) for (const id of ids) ships[id].maneuver.rangeErrorKm = currentRangeKm() - targetRangeKm;
       motionTime = nextTime;
     }
   }
@@ -2590,7 +2676,7 @@ function createNavalDuel(options = {}) {
     return {time, ships: {yamato: publicShip(ships.yamato), iowa: publicShip(ships.iowa)}};
   }
   function ballisticContext() {
-    return {events, seaState: initialConfig.ballisticSeaState, oceanOffset: initialConfig.ballisticOceanOffset, impactMotion: initialConfig.ballisticImpactMotion, ...(siDragKinematics ? {kinematicsModel: 'si-drag', displayUnitsPerMeter} : {})};
+    return {events, seaState: initialConfig.ballisticSeaState, oceanOffset: initialConfig.ballisticOceanOffset, impactMotion: initialConfig.ballisticImpactMotion, ...(siDragKinematics ? {kinematicsModel: 'si-drag', displayUnitsPerMeter} : {}), ...(rangeControl ? {maneuverRevision: 'range-control-v18'} : {})};
   }
   const motionKeys = ['speedKnots', 'position', 'heading', 'tacticalPosition', 'velocity', 'yawRate', 'maneuver', '_pathPhase', '_steadyGoal', '_steadyTurning', '_incomingTracks', ...(salvoPressure ? ['_aimAccelerationPenalty'] : []), ...(fragileManeuver ? ['_surgeKnots', '_actualRudder'] : [])];
   function previewMotion(time) {
@@ -4221,11 +4307,18 @@ function createNavalDuel(options = {}) {
       motionTime = savedTime;
     }
   }
-  function publicShip(ship) {
+  function publicShip(ship, deferDisplaySolution = false) {
     const out = {};
     for (const key of Object.keys(ship)) if (!key.startsWith('_')) out[key] = clone(ship[key]);
     out.hitRate = out.hits / Math.max(1, out.shotsFired);
     if (salvoPressure) out.tactical = tacticalSummary(ship, currentRangeKm(), motionTime);
+    // v18 samples derive the exact display solution after restoring the
+    // requested pose. Preserve loader clocks here without solving it twice;
+    // launches and collision-state getters still solve their actual poses.
+    if (rangeControl && deferDisplaySolution) {
+      out.gunnery = gunnerySummary(ship, motionTime, null);
+      return out;
+    }
     out.fireSolution = solutionFor(ship);
     if (independentGunnery) out.gunnery = gunnerySummary(ship, motionTime, out.fireSolution);
     out.fireableGuns = out.fireSolution.eligibleTurrets.reduce((n, i) => n + ship.turrets[i].barrels.filter(b => b > .12).length, 0);
@@ -4236,7 +4329,7 @@ function createNavalDuel(options = {}) {
   function snapshot(time) {
     const rangeKm = currentRangeKm();
     if (salvoPressure) snapshotMotion.push(Object.fromEntries(ids.map(id => [id, Object.fromEntries(sampledMotionKeys.map(key => [key, typeof ships[id][key] === 'object' ? clone(ships[id][key]) : ships[id][key]]))])));
-    snapshots.push({time, currentRangeKm: rangeKm, closingSpeedKnots: closingSpeedKnots(), encounterPhase: !maximumEncounter ? 'exchange' : rangeKm > specs.iowa.maxGunRangeKm ? 'approach' : rangeKm > 22 ? 'exchange' : 'mid-range', ships: {yamato: publicShip(ships.yamato), iowa: publicShip(ships.iowa)}, result: result ? {...clone(result), deaths: deathRecords()} : null});
+    snapshots.push({time, currentRangeKm: rangeKm, closingSpeedKnots: closingSpeedKnots(), encounterPhase: !maximumEncounter ? 'exchange' : rangeKm > specs.iowa.maxGunRangeKm ? 'approach' : rangeKm > 22 ? 'exchange' : 'mid-range', ships: {yamato: publicShip(ships.yamato, true), iowa: publicShip(ships.iowa, true)}, result: result ? {...clone(result), deaths: deathRecords()} : null});
   }
   applyDueTacticalOrders();
   snapshot(0);
@@ -5585,7 +5678,7 @@ function createDuelCompartments(T,built,id){
     const yamatoAmmoInput=root.querySelector('[data-yamato-ammo]'),iowaAmmoInput=root.querySelector('[data-iowa-ammo]');
     root.querySelectorAll('[data-ammo-field]').forEach(field=>field.hidden=!energeticDamageExperiment);
     function buildBattle(settings){return createNavalDuel({...settings,...(ballistics&&settings.ballisticsMode==='mesh-path'?{ballistics,ballisticSeaState:settings.ballisticSeaState||'moderate',ballisticOceanOffset:settings.ballisticOceanOffset||0,ballisticImpactMotion:!reduced}:{})});}
-    let config={seed:vitalHitsExperiment?8:ballisticsExperiment?841029996:damagePathExperiment?3280744387:directHitExperiment?directHitSeed:highRiskExperiment?3298610066:19440426,encounterMode:directFireExperiment?'set-range':'maximum',rangeKm:directFireExperiment?6:42,visibility:'clear',accuracyScale:ballisticsExperiment?1.3:highRiskExperiment?1.1:1,maneuverMode:'evasive',damageModel:energeticDamageExperiment?'energetic-crew':crewDamageExperiment?'crew-vital':vitalHitsExperiment?'vital-path':'critical',repairPolicy:'balanced',magazineRisk:highRiskExperiment?'high':'normal',magazinePropagation:chainExperiment?'chain':'isolated',ballisticsMode:ballisticsExperiment?'mesh-path':null,gunneryModel:directFireExperiment?'range-aware':null,kinematicsModel:kinematicsExperiment?'si-drag':null,tacticalModel:tacticsExperiment?'salvo-pressure':null,fireControlModel:individualGunneryExperiment?'per-gun':null,combatModel:fragileCombatExperiment?'fragile-maneuver':null,yamatoDoctrine:'balanced',iowaDoctrine:'balanced',tacticalOrders:[],ballisticSeaState:'moderate',ballisticOceanOffset:0,yamatoAmmo:'ap',iowaAmmo:'ap'},duel=buildBattle(config),snapshot=duel.sample(0),clock=0,playing=false,hasRun=false,speed=4,focus='whole',view='angle',cutaway=false,exteriorView=null,blastPreview=null,zone='engine',seaState='moderate',oceanOffset=0,battleNumber=0,lastSaved='',lastLog='',lastResult='',lastFrame=performance.now(),raf=0,dirty=true,cameraAnimation=null,trackedFleetBox=null,trackedFleetCenter=new T.Vector3(),trackedFramingDistance=null,framingUpdatedAt=0;
+    let config={seed:vitalHitsExperiment?8:ballisticsExperiment?841029996:damagePathExperiment?3280744387:directHitExperiment?directHitSeed:highRiskExperiment?3298610066:19440426,encounterMode:directFireExperiment?'set-range':'maximum',rangeKm:directFireExperiment?6:42,visibility:'clear',accuracyScale:ballisticsExperiment?1.3:highRiskExperiment?1.1:1,maneuverMode:'evasive',damageModel:energeticDamageExperiment?'energetic-crew':crewDamageExperiment?'crew-vital':vitalHitsExperiment?'vital-path':'critical',repairPolicy:'balanced',magazineRisk:highRiskExperiment?'high':'normal',magazinePropagation:chainExperiment?'chain':'isolated',ballisticsMode:ballisticsExperiment?'mesh-path':null,gunneryModel:directFireExperiment?'range-aware':null,kinematicsModel:kinematicsExperiment?'si-drag':null,tacticalModel:tacticsExperiment?'salvo-pressure':null,fireControlModel:individualGunneryExperiment?'per-gun':null,combatModel:fragileCombatExperiment?'fragile-maneuver':null,maneuverRevision:rangeControlExperiment?'range-control-v18':null,rangePolicy:'hold',yamatoDoctrine:'balanced',iowaDoctrine:'balanced',tacticalOrders:[],ballisticSeaState:'moderate',ballisticOceanOffset:0,yamatoAmmo:'ap',iowaAmmo:'ap'},duel=buildBattle(config),snapshot=duel.sample(0),clock=0,playing=false,hasRun=false,speed=4,focus='whole',view='angle',cutaway=false,exteriorView=null,blastPreview=null,zone='engine',seaState='moderate',oceanOffset=0,battleNumber=0,lastSaved='',lastLog='',lastResult='',lastFrame=performance.now(),raf=0,dirty=true,cameraAnimation=null,trackedFleetBox=null,trackedFleetCenter=new T.Vector3(),trackedFramingDistance=null,framingUpdatedAt=0;
     const seaInput=root.querySelector('select[data-sea]'),sampleVisual=createDuelRenderSampler(T,sea,()=>duel,()=>seaState,()=>oceanOffset,()=>({impactMotion:!reduced}));
     const trajectoryInput=root.querySelector('[data-trajectories]'),trajectoryLegend=root.querySelector('[data-trajectory-legend]'),trajectoryTheme={};let trajectoryMode=trajectoryExperiment;
     trajectoryInput.checked=trajectoryMode;
@@ -5595,8 +5688,9 @@ function createDuelCompartments(T,built,id){
     window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>{resolveTrajectoryTheme();update(false);});
     const labels=Object.fromEntries(['yamato','iowa'].map(id=>[id,root.querySelector('[data-ship-label="'+id+'"]')])),styles={angle:trajectoryExperiment?[1.5,.83,.32]:[.56,.83,1.5],side:trajectoryExperiment?[1,.19,0]:[0,.19,1],top:[0,1,.001]},trackedCenter=new T.Vector3();
     const fmt=time=>Math.floor(time/60).toString().padStart(2,'0')+':'+Math.floor(time%60).toString().padStart(2,'0'),pct=value=>Math.round(Math.max(0,Math.min(1,Number(value)||0))*100);
+    const rangePolicyInput=root.querySelector('select[data-range-policy]');root.querySelector('[data-range-policy-field]').hidden=!rangeControlExperiment;
     const maneuverInput=root.querySelector('select[data-maneuver]'),encounterInput=root.querySelector('select[data-encounter]'),blastButton=root.querySelector('[data-blast-preview]'),repairInput=root.querySelector('select[data-repair-policy]'),magazineRiskInput=root.querySelector('select[data-magazine-risk]'),propagationInput=root.querySelector('select[data-magazine-propagation]');
-    const tacticalPanel=root.querySelector('[data-tactical-panel]'),tacticalNotice=root.querySelector('[data-tactical-notice]'),doctrineInputs=Object.fromEntries(['yamato','iowa'].map(id=>[id,root.querySelector('[data-doctrine="'+id+'"]')]));let doctrineBusy=false,doctrineError='';
+    const tacticalPanel=root.querySelector('[data-tactical-panel]'),tacticalNotice=root.querySelector('[data-tactical-notice]'),doctrineInputs=Object.fromEntries(['yamato','iowa'].map(id=>[id,root.querySelector('[data-doctrine="'+id+'"]')]));let doctrineBusy=false,doctrineError='',battleBusy=false,battleError='';
     const doctrineNames={repair:'수리 집중',balanced:'균형 운용',attack:'공격 집중'};
     propagationInput.value=config.magazinePropagation;
     if(highRiskExperiment||directHitExperiment){
@@ -5762,20 +5856,20 @@ function createDuelCompartments(T,built,id){
       if(result&&result.label!==lastResult){lastResult=result.label;stage.setAttribute('aria-label','야마토와 아이오와의 가상 교전. '+result.label+'. 재생 위치를 움직이면 피해 발생 과정을 다시 볼 수 있습니다.');}
       else if(!result&&lastResult){lastResult='';stage.setAttribute('aria-label','야마토와 아이오와의 가상 일대일 포격전. 부위별 피해가 화력과 속력에 영향을 줍니다. 피해 구획을 켜면 개념적인 기관실과 탄약고 배치를 볼 수 있습니다.');}
       const shownTime=blastPreview?blastPreview.elapsed:clock,shownDuration=blastPreview?24:duel.duration,canPlay=hasRun||!!blastPreview;
-      root.querySelector('[data-time-value]').textContent=canPlay?fmt(shownTime)+' / '+fmt(shownDuration):fmt(0);timeInput.max=String(shownDuration);timeInput.value=String(shownTime);timeInput.disabled=!canPlay;pause.disabled=!canPlay||!blastPreview&&shownTime>=shownDuration;pause.textContent=shownTime>=shownDuration?(blastPreview?'유폭 다시 재생':'교전 종료'):playing?'일시정지':'계속 재생';pause.setAttribute('aria-pressed',String(canPlay&&!playing));replay.disabled=!hasRun||!!blastPreview;start.disabled=!!blastPreview;start.textContent=hasRun?'새 교전':'교전 시작';
+      root.querySelector('[data-time-value]').textContent=canPlay?fmt(shownTime)+' / '+fmt(shownDuration):fmt(0);timeInput.max=String(shownDuration);timeInput.value=String(shownTime);timeInput.disabled=!canPlay||doctrineBusy||battleBusy;pause.disabled=doctrineBusy||battleBusy||!canPlay||!blastPreview&&shownTime>=shownDuration;pause.textContent=shownTime>=shownDuration?(blastPreview?'유폭 다시 재생':'교전 종료'):playing?'일시정지':'계속 재생';pause.setAttribute('aria-pressed',String(canPlay&&!playing));replay.disabled=doctrineBusy||battleBusy||!hasRun||!!blastPreview;start.disabled=doctrineBusy||battleBusy||!!blastPreview;start.textContent=hasRun?'새 교전':'교전 시작';
       root.querySelector('[data-battle-number]').textContent=hasRun?'교전 '+battleNumber+' · '+(config.encounterMode==='maximum'?'최대 사거리 조우':config.rangeKm+' km 조우')+(config.ballisticsMode==='mesh-path'?' · 외형 충돌 판정':config.damageModel==='critical'?' · 탄약고 직격 판정':config.damageModel==='cascade'?' · 구획 열 전파':config.damageModel==='legacy'?' · 기존 교전':' · 기존 교전 · 설비 고장·수리')+(['vital-path','crew-vital','energetic-crew'].includes(config.damageModel)?' · 급소 관통 피해':'')+(['crew-vital','energetic-crew'].includes(config.damageModel)?' · 인력·손상통제':'')+(config.damageModel==='energetic-crew'?' · 탄종·연료 화재':'')+(config.magazineRisk==='high'?' · 유폭 위험 높음':'')+(config.magazinePropagation==='chain'?' · 연쇄 전파 실험':''):'교전 대기';
       if(!cutaway&&!blastPreview)root.querySelector('[data-scale]').textContent=config.kinematicsModel==='si-drag'?'함선 확대 표시':'표시 거리·비행 시간 축약';
-      root.querySelector('[data-current-range]').textContent='함간 거리 '+(Number(snapshot.currentRangeKm)||config.rangeKm).toFixed(1)+' km';const closing=Number(snapshot.closingSpeedKnots)||0;root.querySelector('[data-closing-speed]').textContent=Math.abs(closing)<.5?'거리 유지':(closing>0?'접근 ':'이격 ')+Math.abs(closing).toFixed(1)+' kn';root.querySelector('[data-encounter-phase]').textContent=config.gunneryModel==='range-aware'&&config.encounterMode!=='maximum'?((Number(snapshot.currentRangeKm)||config.rangeKm)<=12?'근거리 교전':'거리 지정 교전'):config.encounterMode==='maximum'?({approach:'원거리 접근',exchange:'양함 포격', 'mid-range':'중거리 교전'}[snapshot.encounterPhase]||'최대 사거리 조우'):'거리 지정 교전';
+      root.querySelector('[data-current-range]').textContent='함간 거리 '+(Number(snapshot.currentRangeKm)||config.rangeKm).toFixed(1)+' km';const closing=Number(snapshot.closingSpeedKnots)||0;root.querySelector('[data-closing-speed]').textContent=Math.abs(closing)<.5?'거리 유지':(closing>0?'접근 ':'이격 ')+Math.abs(closing).toFixed(1)+' kn';root.querySelector('[data-encounter-phase]').textContent=config.maneuverRevision==='range-control-v18'?(config.rangePolicy==='close'?'접근 목표 ':'거리 유지 목표 ')+(duel.initialConfig.targetRangeKm||config.rangeKm).toFixed(1)+' km':config.gunneryModel==='range-aware'&&config.encounterMode!=='maximum'?((Number(snapshot.currentRangeKm)||config.rangeKm)<=12?'근거리 교전':'거리 지정 교전'):config.encounterMode==='maximum'?({approach:'원거리 접근',exchange:'양함 포격', 'mid-range':'중거리 교전'}[snapshot.encounterPhase]||'최대 사거리 조우'):'거리 지정 교전';
       const recent=!hasRun||blastPreview?[]:duel.events.filter(e=>e.time<=clock&&e.label&&e.type!=='splash').slice(-8),keyString=String(config.seed)+'|'+recent.map(e=>e.id+':'+eventLabel(e)).join('|');log.setAttribute('aria-live',playing?'off':'polite');
       if(keyString!==lastLog){lastLog=keyString;log.replaceChildren();for(const event of recent)appendEventItem(log,event);root.querySelector('[data-last-event]').textContent=recent.length?eventLabel(recent.at(-1)):'아직 사격하지 않았습니다';}
-      Object.assign(stage.dataset,{time:clock.toFixed(2),previewTime:blastPreview?blastPreview.elapsed.toFixed(2):'',previewMagazine:blastPreview?blastPreview.ship+':'+blastPreview.turretIndex:'',previewPropagation:blastPreview?.propagation||'',magazinePropagation:config.magazinePropagation||'isolated',seed:String(config.seed),playing:String(playing),yamatoGuns:String(snapshot.ships.yamato.activeGuns),iowaGuns:String(snapshot.ships.iowa.activeGuns),yamatoFlood:String(snapshot.ships.yamato.flooding),iowaFlood:String(snapshot.ships.iowa.flooding),result:result?.reason||'none',focus,cutaway:String(cutaway),maneuverMode:config.maneuverMode,encounterMode:config.encounterMode,damageModel:config.damageModel,revision:duel.initialConfig.modelRevision,yamatoAmmo:config.yamatoAmmo||'ap',iowaAmmo:config.iowaAmmo||'ap',yamatoCrew:String(snapshot.ships.yamato.crew?.operators??1),iowaCrew:String(snapshot.ships.iowa.crew?.operators??1),yamatoRepairParties:String(snapshot.ships.yamato.crew?.repairParties??1),iowaRepairParties:String(snapshot.ships.iowa.crew?.repairParties??1),ballisticsMode:duel.initialConfig.ballistics||'proxy',gunneryModel:config.gunneryModel||'legacy-range',kinematicsModel:config.kinematicsModel||'legacy-flight',repairPolicy:config.repairPolicy,magazineRisk:config.magazineRisk,currentRangeKm:String(snapshot.currentRangeKm||config.rangeKm),yamatoInRange:String(snapshot.ships.yamato.fireSolution?.inRange),iowaInRange:String(snapshot.ships.iowa.fireSolution?.inRange),yamatoHeading:String(snapshot.ships.yamato.heading),iowaHeading:String(snapshot.ships.iowa.heading),yamatoPosition:snapshot.ships.yamato.position.join(','),iowaPosition:snapshot.ships.iowa.position.join(','),yamatoEvasion:String(snapshot.ships.yamato.maneuver?.evasionEffect||0),iowaEvasion:String(snapshot.ships.iowa.maneuver?.evasionEffect||0)});
+      Object.assign(stage.dataset,{time:clock.toFixed(2),previewTime:blastPreview?blastPreview.elapsed.toFixed(2):'',previewMagazine:blastPreview?blastPreview.ship+':'+blastPreview.turretIndex:'',previewPropagation:blastPreview?.propagation||'',magazinePropagation:config.magazinePropagation||'isolated',seed:String(config.seed),playing:String(playing),yamatoGuns:String(snapshot.ships.yamato.activeGuns),iowaGuns:String(snapshot.ships.iowa.activeGuns),yamatoFlood:String(snapshot.ships.yamato.flooding),iowaFlood:String(snapshot.ships.iowa.flooding),result:result?.reason||'none',focus,cutaway:String(cutaway),maneuverMode:config.maneuverMode,encounterMode:config.encounterMode,damageModel:config.damageModel,revision:duel.initialConfig.modelRevision,yamatoAmmo:config.yamatoAmmo||'ap',iowaAmmo:config.iowaAmmo||'ap',yamatoCrew:String(snapshot.ships.yamato.crew?.operators??1),iowaCrew:String(snapshot.ships.iowa.crew?.operators??1),yamatoRepairParties:String(snapshot.ships.yamato.crew?.repairParties??1),iowaRepairParties:String(snapshot.ships.iowa.crew?.repairParties??1),ballisticsMode:duel.initialConfig.ballistics||'proxy',gunneryModel:config.gunneryModel||'legacy-range',kinematicsModel:config.kinematicsModel||'legacy-flight',repairPolicy:config.repairPolicy,magazineRisk:config.magazineRisk,currentRangeKm:String(snapshot.currentRangeKm||config.rangeKm),yamatoInRange:String(snapshot.ships.yamato.fireSolution?.inRange),iowaInRange:String(snapshot.ships.iowa.fireSolution?.inRange),yamatoHeading:String(snapshot.ships.yamato.heading),iowaHeading:String(snapshot.ships.iowa.heading),yamatoPosition:snapshot.ships.yamato.position.join(','),iowaPosition:snapshot.ships.iowa.position.join(','),yamatoEvasion:String(snapshot.ships.yamato.maneuver?.evasionEffect||0),iowaEvasion:String(snapshot.ships.iowa.maneuver?.evasionEffect||0),maneuverRevision:config.maneuverRevision||'legacy',rangePolicy:config.rangePolicy||'legacy',targetRangeKm:String(duel.initialConfig.targetRangeKm||config.rangeKm)});
       updateTactics();
     }
     function updateTactics(){
       const enabled=config.tacticalModel==='salvo-pressure';tacticalPanel.hidden=!enabled||!!blastPreview;
       for(const id of ['yamato','iowa']){
         const ship=snapshot.ships[id],t=ship.tactical,readout=root.querySelector('[data-status="'+id+'"] [data-tactical-readout]');readout.hidden=!enabled||!t;
-        doctrineInputs[id].disabled=!enabled||!!blastPreview||doctrineBusy||!!snapshot.result||ship.defeated;
+        doctrineInputs[id].disabled=!enabled||!!blastPreview||doctrineBusy||battleBusy||!!snapshot.result||ship.defeated;
         if(!t)continue;if(!doctrineBusy)doctrineInputs[id].value=t.mode;
         readout.querySelector('[data-tactical-doctrine]').textContent='운용 · '+doctrineNames[t.mode]+' · 장전 시간 ×'+t.reloadMultiplier.toFixed(2)+(ship.gunnery?.model==='per-gun'?'':' · 장전 잔여 '+Math.max(0,t.nextSalvoInSeconds||0).toFixed(1)+' s')+' · 피격 치명 위험 ×'+t.incomingCriticalMultiplier.toFixed(2);
         readout.querySelector('[data-tactical-spotting]').textContent='조준 확신 '+pct(t.spotting.quality)+(ship.gunnery?.model==='per-gun'?'% · 관측탄 ':'% · 관측 일제사 ')+t.spotting.observedSalvos;
@@ -5797,15 +5891,16 @@ function createDuelCompartments(T,built,id){
       if(!doctrineBusy)tacticalNotice.textContent=doctrineError||'전투 중 즉시 전환 · 수리 집중은 피해 대응, 공격 집중은 빠른 장전·조준 보정에 우선 배분합니다.';
     }
     async function issueDoctrine(id,mode){
-      if(doctrineBusy||blastPreview||config.tacticalModel!=='salvo-pressure'||snapshot.result||snapshot.ships[id].defeated||!Object.hasOwn(doctrineNames,mode))return;
+      if(doctrineBusy||battleBusy||blastPreview||config.tacticalModel!=='salvo-pressure'||snapshot.result||snapshot.ships[id].defeated||!Object.hasOwn(doctrineNames,mode))return;
       const wasPlaying=playing,oldClock=clock,previousConfig=config;playing=false;doctrineBusy=true;doctrineError='';
-      root.querySelectorAll('.viz-controls').forEach(control=>control.inert=true);timeInput.disabled=true;tacticalPanel.setAttribute('aria-busy','true');tacticalNotice.textContent='운용 명령 적용 중…';dirty=true;
+      root.querySelectorAll('.viz-controls').forEach(control=>control.inert=true);timeInput.disabled=true;tacticalPanel.setAttribute('aria-busy','true');tacticalNotice.textContent='운용 명령 적용 중…';updateStatus();dirty=true;
       await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
       try{
+        if(config!==previousConfig)return;
         const orderTime=clock+.0001,tacticalOrders=(config.tacticalOrders||[]).filter(order=>order.time<=clock);tacticalOrders.push({time:orderTime,ship:id,mode});
         const nextConfig={...config,tacticalOrders},nextDuel=buildBattle(nextConfig);config=nextConfig;duel=nextDuel;clock=Math.min(orderTime,duel.duration);
         effects.clear();trajectories.clear();lastLog='';delete root.querySelector('[data-zone-history]').dataset.key;playing=wasPlaying;
-      }catch(error){config=previousConfig;clock=oldClock;playing=wasPlaying;doctrineError='명령을 적용하지 못했습니다. 현재 교전은 유지됩니다.';console.error(error);}
+      }catch(error){if(config===previousConfig){clock=oldClock;playing=wasPlaying;}doctrineError='명령을 적용하지 못했습니다. 현재 교전은 유지됩니다.';console.error(error);}
       finally{doctrineBusy=false;root.querySelectorAll('.viz-controls').forEach(control=>control.inert=false);tacticalPanel.removeAttribute('aria-busy');lastFrame=performance.now();update();persist();}
     }
     function displayedState(){return blastPreview?.frameState||snapshot;}
@@ -5883,20 +5978,33 @@ function createDuelCompartments(T,built,id){
       for(const id of ['yamato','iowa']){const motion=snapshot.ships[id].impactMotion;stage.dataset[id+'ImpactEnergy']=String(motion?.energy||0);stage.dataset[id+'ImpactRoll']=String(motion?.roll||0);}
     }
     function persist(){
-      const saved=blastPreview?.saved,state={modelContent:{model:'야마토 × 아이오와 · 1944 가상 교전',battle:{seed:config.seed,encounterMode:config.encounterMode,rangeKm:config.rangeKm,currentRangeKm:Number((snapshot.currentRangeKm||config.rangeKm).toFixed(2)),visibility:config.visibility,accuracyScale:config.accuracyScale,revision:duel.initialConfig.modelRevision,repairPolicy:config.repairPolicy,magazineRisk:config.magazineRisk,magazinePropagation:config.magazinePropagation||'isolated',maneuverMode:config.maneuverMode,seaState,trajectoryMode,ballisticsMode:config.ballisticsMode||null,gunneryModel:config.gunneryModel||null,kinematicsModel:config.kinematicsModel||null,tacticalModel:config.tacticalModel||null,fireControlModel:config.fireControlModel||null,combatModel:config.combatModel||null,yamatoDoctrine:config.yamatoDoctrine||'balanced',iowaDoctrine:config.iowaDoctrine||'balanced',tacticalOrders:config.tacticalOrders||[],damageModel:config.damageModel,yamatoAmmo:config.yamatoAmmo||'ap',iowaAmmo:config.iowaAmmo||'ap',speed,time:clock,result:snapshot.result?.label||null,focus:saved?.focus||focus,cutaway:saved?saved.cutaway:cutaway},effectPreview:blastPreview?{ship:blastPreview.ship,magazine:blastPreview.turretIndex+1,propagation:blastPreview.propagation,time:Number(blastPreview.elapsed.toFixed(2))}:null,ships:Object.fromEntries(Object.entries(snapshot.ships).map(([id,s])=>[id,{speedKnots:Number(s.speedKnots.toFixed(1)),activeGuns:s.activeGuns,hitsReceived:s.hitsReceived,penetrationsReceived:s.penetrationsReceived,...(s.power?{power:{output:pct(s.power.output),status:s.power.status,supplyRate:pct(s.supplyRate)},criticalCause:s.criticalCause||null,feed:s.turrets.map((t,i)=>({number:i+1,available:t.feed?.available??true,supplyRate:pct(t.feed?.supplyRate??1),status:t.feed?.status||null}))}:{}),...(s.crew?{crew:{operators:pct(s.crew.operators),repairParties:pct(s.crew.repairParties)},damageControl:{capacity:Number(s.damageControl.capacity.toFixed(3)),demand:Number(s.damageControl.demand.toFixed(3)),allocated:Number(s.damageControl.allocated.toFixed(3)),activeZones:s.damageControl.activeZones,status:s.damageControl.status},operationalFailure:s.operationalFailure||null}:{}),...(s.fuel?{ammoType:s.ammoType,fuel:{leak:pct(s.fuel.leak),remaining:pct(s.fuel.remaining),burning:s.fuel.burning}}:{}),integrity:pct(s.integrity),flooding:pct(s.flooding),fire:pct(s.fire),status:s.status,sinkingCause:s.sinking?.causeLabel||null,structuralFailure:s.structuralFailure||null,magazines:s.turrets.map((t,i)=>({number:i+1,detonated:t.magazine.detonated,flooded:t.magazine.flooded,heat:pct(t.magazine.heat),state:t.magazine.stateLabel||null,detonationCause:t.magazine.detonationCause||null,heatSource:t.magazine.heatSource||null,floodProgress:pct(t.magazine.floodProgress),riskMultiplier:Number((t.magazine.riskMultiplier||1).toFixed(2)),repairStatus:t.magazine.repairStatus||null,equipment:t.magazine.equipment?Object.fromEntries(Object.entries(t.magazine.equipment).map(([k,e])=>[k,{health:pct(e.health),fault:e.fault,repairProgress:pct(e.repairProgress)}])):null})),maneuver:s.maneuver?.name||'직진',...(s.combat?{combat:s.combat,maneuverDiagnostics:{trackingErrorMeters:s.maneuver?.trackingErrorMeters||0,turnRateDeg:s.maneuver?.turnRateDeg||0,turnSpeedLoss:s.maneuver?.turnSpeedLoss||0,incomingShells:s.maneuver?.incomingShells||0}}:{}),aimDisruption:pct(s.maneuver?.evasionEffect),inGunRange:s.fireSolution?.inRange??true}]))},privateContent:{version:fragileCombatExperiment?'duel-17':individualGunneryExperiment?'duel-16':tacticsExperiment?'duel-15':kinematicsExperiment?'duel-14':energeticDamageExperiment?'duel-13':crewDamageExperiment?'duel-12':vitalHitsExperiment?'duel-11':directFireExperiment?'duel-10':ballisticsExperiment?'duel-9':'duel-8',hasRun,battleNumber,view:saved?.view||view,zone,oceanOffset,exteriorView:saved?saved.exteriorView:exteriorView,camera:saved?.camera||cameraAnimation?.to.toArray()||camera.position.toArray(),target:saved?.target||cameraAnimation?.at.toArray()||controls.target.toArray(),aspect:saved?.aspect||camera.aspect,blastPreview:blastPreview?{ship:blastPreview.ship,turretIndex:blastPreview.turretIndex,propagation:blastPreview.propagation,elapsed:blastPreview.elapsed}:null}};lastSaved=JSON.stringify(state);if(window.openai?.setWidgetState)Promise.resolve(window.openai.setWidgetState(state)).catch(()=>{});
+      const saved=blastPreview?.saved,state={modelContent:{model:'야마토 × 아이오와 · 1944 가상 교전',battle:{seed:config.seed,encounterMode:config.encounterMode,rangeKm:config.rangeKm,currentRangeKm:Number((snapshot.currentRangeKm||config.rangeKm).toFixed(2)),visibility:config.visibility,accuracyScale:config.accuracyScale,revision:duel.initialConfig.modelRevision,repairPolicy:config.repairPolicy,magazineRisk:config.magazineRisk,magazinePropagation:config.magazinePropagation||'isolated',maneuverMode:config.maneuverMode,maneuverRevision:config.maneuverRevision||null,rangePolicy:config.rangePolicy||null,targetRangeKm:duel.initialConfig.targetRangeKm||null,seaState,trajectoryMode,ballisticsMode:config.ballisticsMode||null,gunneryModel:config.gunneryModel||null,kinematicsModel:config.kinematicsModel||null,tacticalModel:config.tacticalModel||null,fireControlModel:config.fireControlModel||null,combatModel:config.combatModel||null,yamatoDoctrine:config.yamatoDoctrine||'balanced',iowaDoctrine:config.iowaDoctrine||'balanced',tacticalOrders:config.tacticalOrders||[],damageModel:config.damageModel,yamatoAmmo:config.yamatoAmmo||'ap',iowaAmmo:config.iowaAmmo||'ap',speed,time:clock,result:snapshot.result?.label||null,focus:saved?.focus||focus,cutaway:saved?saved.cutaway:cutaway},effectPreview:blastPreview?{ship:blastPreview.ship,magazine:blastPreview.turretIndex+1,propagation:blastPreview.propagation,time:Number(blastPreview.elapsed.toFixed(2))}:null,ships:Object.fromEntries(Object.entries(snapshot.ships).map(([id,s])=>[id,{speedKnots:Number(s.speedKnots.toFixed(1)),activeGuns:s.activeGuns,hitsReceived:s.hitsReceived,penetrationsReceived:s.penetrationsReceived,...(s.power?{power:{output:pct(s.power.output),status:s.power.status,supplyRate:pct(s.supplyRate)},criticalCause:s.criticalCause||null,feed:s.turrets.map((t,i)=>({number:i+1,available:t.feed?.available??true,supplyRate:pct(t.feed?.supplyRate??1),status:t.feed?.status||null}))}:{}),...(s.crew?{crew:{operators:pct(s.crew.operators),repairParties:pct(s.crew.repairParties)},damageControl:{capacity:Number(s.damageControl.capacity.toFixed(3)),demand:Number(s.damageControl.demand.toFixed(3)),allocated:Number(s.damageControl.allocated.toFixed(3)),activeZones:s.damageControl.activeZones,status:s.damageControl.status},operationalFailure:s.operationalFailure||null}:{}),...(s.fuel?{ammoType:s.ammoType,fuel:{leak:pct(s.fuel.leak),remaining:pct(s.fuel.remaining),burning:s.fuel.burning}}:{}),integrity:pct(s.integrity),flooding:pct(s.flooding),fire:pct(s.fire),status:s.status,sinkingCause:s.sinking?.causeLabel||null,structuralFailure:s.structuralFailure||null,magazines:s.turrets.map((t,i)=>({number:i+1,detonated:t.magazine.detonated,flooded:t.magazine.flooded,heat:pct(t.magazine.heat),state:t.magazine.stateLabel||null,detonationCause:t.magazine.detonationCause||null,heatSource:t.magazine.heatSource||null,floodProgress:pct(t.magazine.floodProgress),riskMultiplier:Number((t.magazine.riskMultiplier||1).toFixed(2)),repairStatus:t.magazine.repairStatus||null,equipment:t.magazine.equipment?Object.fromEntries(Object.entries(t.magazine.equipment).map(([k,e])=>[k,{health:pct(e.health),fault:e.fault,repairProgress:pct(e.repairProgress)}])):null})),maneuver:s.maneuver?.name||'직진',...(s.combat?{combat:s.combat,maneuverDiagnostics:{trackingErrorMeters:s.maneuver?.trackingErrorMeters||0,turnRateDeg:s.maneuver?.turnRateDeg||0,turnSpeedLoss:s.maneuver?.turnSpeedLoss||0,incomingShells:s.maneuver?.incomingShells||0}}:{}),aimDisruption:pct(s.maneuver?.evasionEffect),inGunRange:s.fireSolution?.inRange??true}]))},privateContent:{version:rangeControlExperiment?'duel-18':fragileCombatExperiment?'duel-17':individualGunneryExperiment?'duel-16':tacticsExperiment?'duel-15':kinematicsExperiment?'duel-14':energeticDamageExperiment?'duel-13':crewDamageExperiment?'duel-12':vitalHitsExperiment?'duel-11':directFireExperiment?'duel-10':ballisticsExperiment?'duel-9':'duel-8',hasRun,battleNumber,view:saved?.view||view,zone,oceanOffset,exteriorView:saved?saved.exteriorView:exteriorView,camera:saved?.camera||cameraAnimation?.to.toArray()||camera.position.toArray(),target:saved?.target||cameraAnimation?.at.toArray()||controls.target.toArray(),aspect:saved?.aspect||camera.aspect,blastPreview:blastPreview?{ship:blastPreview.ship,turretIndex:blastPreview.turretIndex,propagation:blastPreview.propagation,elapsed:blastPreview.elapsed}:null}};lastSaved=JSON.stringify(state);if(window.openai?.setWidgetState)Promise.resolve(window.openai.setWidgetState(state)).catch(()=>{});
     }
     function restore(state){
-      if(!['duel-1','duel-2','duel-3','duel-4','duel-5','duel-6','duel-7','duel-8','duel-9','duel-10','duel-11','duel-12','duel-13','duel-14','duel-15','duel-16','duel-17'].includes(state?.privateContent?.version)||JSON.stringify(state)===lastSaved)return;const b=state.modelContent?.battle,v=state.privateContent;if(!b)return;if(blastPreview)finishBlastPreview(false);
-      config={seed:Number.isFinite(b.seed)?b.seed>>>0:19440426,encounterMode:b.encounterMode==='maximum'?'maximum':'set-range',rangeKm:b.encounterMode==='maximum'?42:(directFireExperiment?[6,12,18,24]:[12,18,24]).includes(b.rangeKm)?b.rangeKm:18,visibility:['clear','haze','night'].includes(b.visibility)?b.visibility:'clear',accuracyScale:T.MathUtils.clamp(Number(b.accuracyScale)||1,.65,1.5),maneuverMode:b.maneuverMode==='steady'?'steady':'evasive',damageModel:['naval-duel-13','naval-duel-14','naval-duel-15','naval-duel-16','naval-duel-17'].includes(b.revision)&&energeticDamageExperiment?'energetic-crew':b.revision==='naval-duel-12'&&crewDamageExperiment?'crew-vital':b.revision==='naval-duel-11'&&vitalHitsExperiment?'vital-path':!v.hasRun&&energeticDamageExperiment?'energetic-crew':!v.hasRun&&crewDamageExperiment?'crew-vital':!v.hasRun&&vitalHitsExperiment?'vital-path':!v.hasRun||['naval-duel-7','naval-duel-8','naval-duel-9','naval-duel-10','naval-duel-11','naval-duel-12','naval-duel-13','naval-duel-14','naval-duel-15','naval-duel-16','naval-duel-17'].includes(b.revision)?'critical':b.revision==='naval-duel-6'?'cascade':b.revision==='naval-duel-5'?'equipment':'legacy',repairPolicy:['balanced','magazine-priority','none'].includes(b.repairPolicy)?b.repairPolicy:'balanced',magazineRisk:(!v.hasRun||['naval-duel-6','naval-duel-7','naval-duel-8','naval-duel-9','naval-duel-10','naval-duel-11','naval-duel-12','naval-duel-13','naval-duel-14','naval-duel-15','naval-duel-16','naval-duel-17'].includes(b.revision))&&b.magazineRisk==='high'?'high':'normal',magazinePropagation:['naval-duel-8','naval-duel-9','naval-duel-10','naval-duel-11','naval-duel-12','naval-duel-13','naval-duel-14','naval-duel-15','naval-duel-16','naval-duel-17'].includes(b.revision)&&b.magazinePropagation==='chain'?'chain':'isolated',ballisticsMode:ballisticsExperiment?'mesh-path':null,gunneryModel:directFireExperiment?'range-aware':null,kinematicsModel:['naval-duel-14','naval-duel-15','naval-duel-16','naval-duel-17'].includes(b.revision)&&kinematicsExperiment?'si-drag':null,tacticalModel:['naval-duel-15','naval-duel-16','naval-duel-17'].includes(b.revision)&&tacticsExperiment?'salvo-pressure':null,fireControlModel:['naval-duel-16','naval-duel-17'].includes(b.revision)&&individualGunneryExperiment?'per-gun':null,combatModel:b.revision==='naval-duel-17'&&fragileCombatExperiment?'fragile-maneuver':null,yamatoDoctrine:['repair','balanced','attack'].includes(b.yamatoDoctrine)?b.yamatoDoctrine:'balanced',iowaDoctrine:['repair','balanced','attack'].includes(b.iowaDoctrine)?b.iowaDoctrine:'balanced',tacticalOrders:['naval-duel-15','naval-duel-16','naval-duel-17'].includes(b.revision)&&Array.isArray(b.tacticalOrders)?b.tacticalOrders:[],ballisticSeaState:['calm','moderate','rough'].includes(b.seaState)?b.seaState:'moderate',ballisticOceanOffset:Number.isFinite(v.oceanOffset)?v.oceanOffset:0,yamatoAmmo:['naval-duel-13','naval-duel-14','naval-duel-15','naval-duel-16','naval-duel-17'].includes(b.revision)&&b.yamatoAmmo==='he'?'he':'ap',iowaAmmo:['naval-duel-13','naval-duel-14','naval-duel-15','naval-duel-16','naval-duel-17'].includes(b.revision)&&b.iowaAmmo==='he'?'he':'ap'};duel=buildBattle(config);effects.clear();trajectories.clear();lastLog='';delete root.querySelector('[data-zone-history]').dataset.key;hasRun=Boolean(v.hasRun);clock=hasRun?T.MathUtils.clamp(Number(b.time)||0,0,duel.duration):0;playing=false;speed=[.25,1,4,12].includes(b.speed)?b.speed:4;focus=['whole','yamato','iowa'].includes(b.focus)?b.focus:'whole';cutaway=Boolean(b.cutaway);if(cutaway&&focus==='whole')focus='yamato';view=styles[v.view]?v.view:'angle';zone=['engine','boiler','magazineA','magazineB','magazineC'].includes(v.zone)?v.zone:'engine';battleNumber=Number(v.battleNumber)||1;
+      if(!['duel-1','duel-2','duel-3','duel-4','duel-5','duel-6','duel-7','duel-8','duel-9','duel-10','duel-11','duel-12','duel-13','duel-14','duel-15','duel-16','duel-17','duel-18'].includes(state?.privateContent?.version)||JSON.stringify(state)===lastSaved)return;const b=state.modelContent?.battle,v=state.privateContent;if(!b)return;if(blastPreview)finishBlastPreview(false);
+      config={seed:Number.isFinite(b.seed)?b.seed>>>0:19440426,encounterMode:b.encounterMode==='maximum'?'maximum':'set-range',rangeKm:b.encounterMode==='maximum'?42:(directFireExperiment?[6,12,18,24]:[12,18,24]).includes(b.rangeKm)?b.rangeKm:18,visibility:['clear','haze','night'].includes(b.visibility)?b.visibility:'clear',accuracyScale:T.MathUtils.clamp(Number(b.accuracyScale)||1,.65,1.5),maneuverMode:b.maneuverMode==='steady'?'steady':'evasive',damageModel:['naval-duel-13','naval-duel-14','naval-duel-15','naval-duel-16','naval-duel-17','naval-duel-18'].includes(b.revision)&&energeticDamageExperiment?'energetic-crew':b.revision==='naval-duel-12'&&crewDamageExperiment?'crew-vital':b.revision==='naval-duel-11'&&vitalHitsExperiment?'vital-path':!v.hasRun&&energeticDamageExperiment?'energetic-crew':!v.hasRun&&crewDamageExperiment?'crew-vital':!v.hasRun&&vitalHitsExperiment?'vital-path':!v.hasRun||['naval-duel-7','naval-duel-8','naval-duel-9','naval-duel-10','naval-duel-11','naval-duel-12','naval-duel-13','naval-duel-14','naval-duel-15','naval-duel-16','naval-duel-17','naval-duel-18'].includes(b.revision)?'critical':b.revision==='naval-duel-6'?'cascade':b.revision==='naval-duel-5'?'equipment':'legacy',repairPolicy:['balanced','magazine-priority','none'].includes(b.repairPolicy)?b.repairPolicy:'balanced',magazineRisk:(!v.hasRun||['naval-duel-6','naval-duel-7','naval-duel-8','naval-duel-9','naval-duel-10','naval-duel-11','naval-duel-12','naval-duel-13','naval-duel-14','naval-duel-15','naval-duel-16','naval-duel-17','naval-duel-18'].includes(b.revision))&&b.magazineRisk==='high'?'high':'normal',magazinePropagation:['naval-duel-8','naval-duel-9','naval-duel-10','naval-duel-11','naval-duel-12','naval-duel-13','naval-duel-14','naval-duel-15','naval-duel-16','naval-duel-17','naval-duel-18'].includes(b.revision)&&b.magazinePropagation==='chain'?'chain':'isolated',ballisticsMode:ballisticsExperiment?'mesh-path':null,gunneryModel:directFireExperiment?'range-aware':null,kinematicsModel:['naval-duel-14','naval-duel-15','naval-duel-16','naval-duel-17','naval-duel-18'].includes(b.revision)&&kinematicsExperiment?'si-drag':null,tacticalModel:['naval-duel-15','naval-duel-16','naval-duel-17','naval-duel-18'].includes(b.revision)&&tacticsExperiment?'salvo-pressure':null,fireControlModel:['naval-duel-16','naval-duel-17','naval-duel-18'].includes(b.revision)&&individualGunneryExperiment?'per-gun':null,combatModel:['naval-duel-17','naval-duel-18'].includes(b.revision)&&fragileCombatExperiment?'fragile-maneuver':null,maneuverRevision:b.revision==='naval-duel-18'&&rangeControlExperiment?'range-control-v18':null,rangePolicy:b.rangePolicy==='close'?'close':b.rangePolicy==='hold'?'hold':b.encounterMode==='maximum'?'close':'hold',yamatoDoctrine:['repair','balanced','attack'].includes(b.yamatoDoctrine)?b.yamatoDoctrine:'balanced',iowaDoctrine:['repair','balanced','attack'].includes(b.iowaDoctrine)?b.iowaDoctrine:'balanced',tacticalOrders:['naval-duel-15','naval-duel-16','naval-duel-17','naval-duel-18'].includes(b.revision)&&Array.isArray(b.tacticalOrders)?b.tacticalOrders:[],ballisticSeaState:['calm','moderate','rough'].includes(b.seaState)?b.seaState:'moderate',ballisticOceanOffset:Number.isFinite(v.oceanOffset)?v.oceanOffset:0,yamatoAmmo:['naval-duel-13','naval-duel-14','naval-duel-15','naval-duel-16','naval-duel-17','naval-duel-18'].includes(b.revision)&&b.yamatoAmmo==='he'?'he':'ap',iowaAmmo:['naval-duel-13','naval-duel-14','naval-duel-15','naval-duel-16','naval-duel-17','naval-duel-18'].includes(b.revision)&&b.iowaAmmo==='he'?'he':'ap'};duel=buildBattle(config);effects.clear();trajectories.clear();lastLog='';delete root.querySelector('[data-zone-history]').dataset.key;hasRun=Boolean(v.hasRun);clock=hasRun?T.MathUtils.clamp(Number(b.time)||0,0,duel.duration):0;playing=false;speed=[.25,1,4,12].includes(b.speed)?b.speed:4;focus=['whole','yamato','iowa'].includes(b.focus)?b.focus:'whole';cutaway=Boolean(b.cutaway);if(cutaway&&focus==='whole')focus='yamato';view=styles[v.view]?v.view:'angle';zone=['engine','boiler','magazineA','magazineB','magazineC'].includes(v.zone)?v.zone:'engine';battleNumber=Number(v.battleNumber)||1;
       const e=v.exteriorView;exteriorView=cutaway&&e&&['whole','yamato','iowa'].includes(e.focus)&&Object.hasOwn(styles,e.view)&&['camera','target','center'].every(k=>Array.isArray(e[k])&&e[k].length===3&&e[k].every(Number.isFinite))&&Number.isFinite(e.aspect)&&e.aspect>0?{focus:e.focus,view:e.view,camera:[...e.camera],target:[...e.target],center:[...e.center],aspect:e.aspect,fleetDistance:Number.isFinite(e.fleetDistance)&&e.fleetDistance>0?e.fleetDistance:null}:null;
-      trajectoryMode=typeof b.trajectoryMode==='boolean'?b.trajectoryMode:trajectoryExperiment;trajectoryInput.checked=trajectoryMode;seaState=['calm','moderate','rough'].includes(b.seaState)?b.seaState:'moderate';oceanOffset=Number.isFinite(v.oceanOffset)?v.oceanOffset:0;seaInput.value=seaState;encounterInput.value=b.encounterMode?config.encounterMode:'maximum';rangeInput.value=String(config.encounterMode==='maximum'?18:config.rangeKm);updateEncounterControls();visibilityInput.value=config.visibility;maneuverInput.value=config.maneuverMode;repairInput.value=config.repairPolicy;magazineRiskInput.value=config.magazineRisk;propagationInput.value=config.magazinePropagation;yamatoAmmoInput.value=config.yamatoAmmo;iowaAmmoInput.value=config.iowaAmmo;accuracyInput.value=String(config.accuracyScale);root.querySelector('[data-accuracy-value]').textContent=config.accuracyScale.toFixed(2)+'×';speedInput.value=String(speed);focusInput.value=focus;cutawayInput.checked=cutaway;setSection();update();fit(false);
+      trajectoryMode=typeof b.trajectoryMode==='boolean'?b.trajectoryMode:trajectoryExperiment;trajectoryInput.checked=trajectoryMode;seaState=['calm','moderate','rough'].includes(b.seaState)?b.seaState:'moderate';oceanOffset=Number.isFinite(v.oceanOffset)?v.oceanOffset:0;seaInput.value=seaState;encounterInput.value=b.encounterMode?config.encounterMode:'maximum';rangeInput.value=String(config.encounterMode==='maximum'?18:config.rangeKm);updateEncounterControls();visibilityInput.value=config.visibility;maneuverInput.value=config.maneuverMode;rangePolicyInput.value=config.rangePolicy;repairInput.value=config.repairPolicy;magazineRiskInput.value=config.magazineRisk;propagationInput.value=config.magazinePropagation;yamatoAmmoInput.value=config.yamatoAmmo;iowaAmmoInput.value=config.iowaAmmo;accuracyInput.value=String(config.accuracyScale);root.querySelector('[data-accuracy-value]').textContent=config.accuracyScale.toFixed(2)+'×';speedInput.value=String(speed);focusInput.value=focus;cutawayInput.checked=cutaway;setSection();update();fit(false);
       if(Array.isArray(v.camera)&&v.camera.length===3&&v.camera.every(Number.isFinite)&&Array.isArray(v.target)&&v.target.length===3&&v.target.every(Number.isFinite)){camera.position.fromArray(v.camera);controls.target.fromArray(v.target);if(v.aspect>camera.aspect)camera.position.sub(controls.target).multiplyScalar(v.aspect/camera.aspect).add(controls.target);controls.update();if(config.combatModel==='fragile-maneuver')resetTracking();}dirty=true;
       if(v.blastPreview&&['yamato','iowa'].includes(v.blastPreview.ship)&&[0,1,2].includes(v.blastPreview.turretIndex))showBlastPreview({...v.blastPreview,autoplay:false,restoring:true});
     }
-    function begin(fresh){
-      if(fresh){oceanOffset+=clock;const seeds=new Uint32Array(1);if(window.crypto?.getRandomValues)window.crypto.getRandomValues(seeds);else seeds[0]=(Date.now()+battleNumber*2654435761)>>>0;config={seed:seeds[0],encounterMode:encounterInput.value,rangeKm:encounterInput.value==='maximum'?42:Number(rangeInput.value),visibility:visibilityInput.value,accuracyScale:Number(accuracyInput.value),maneuverMode:maneuverInput.value,damageModel:energeticDamageExperiment?'energetic-crew':crewDamageExperiment?'crew-vital':vitalHitsExperiment?'vital-path':'critical',repairPolicy:repairInput.value,magazineRisk:magazineRiskInput.value,magazinePropagation:propagationInput.value,ballisticsMode:ballisticsExperiment?'mesh-path':null,gunneryModel:directFireExperiment?'range-aware':null,kinematicsModel:kinematicsExperiment?'si-drag':null,tacticalModel:tacticsExperiment?'salvo-pressure':null,fireControlModel:individualGunneryExperiment?'per-gun':null,combatModel:fragileCombatExperiment?'fragile-maneuver':null,yamatoDoctrine:doctrineInputs.yamato.value,iowaDoctrine:doctrineInputs.iowa.value,tacticalOrders:[],ballisticSeaState:seaState,ballisticOceanOffset:oceanOffset,yamatoAmmo:yamatoAmmoInput.value,iowaAmmo:iowaAmmoInput.value};duel=buildBattle(config);battleNumber++;}effects.clear();trajectories.clear();lastLog='';delete root.querySelector('[data-zone-history]').dataset.key;clock=0;hasRun=true;playing=true;setEnvironment();update();fit(false);persist();
+    async function begin(fresh){
+      if(doctrineBusy||battleBusy||blastPreview)return;
+      if(!fresh){effects.clear();trajectories.clear();lastLog='';delete root.querySelector('[data-zone-history]').dataset.key;clock=0;hasRun=true;playing=true;setEnvironment();update();fit(false);persist();return;}
+      const previousConfig=config,wasPlaying=playing,nextOceanOffset=oceanOffset+clock,seeds=new Uint32Array(1);
+      if(window.crypto?.getRandomValues)window.crypto.getRandomValues(seeds);else seeds[0]=(Date.now()+battleNumber*2654435761)>>>0;
+      const nextConfig={seed:seeds[0],encounterMode:encounterInput.value,rangeKm:encounterInput.value==='maximum'?42:Number(rangeInput.value),visibility:visibilityInput.value,accuracyScale:Number(accuracyInput.value),maneuverMode:maneuverInput.value,damageModel:energeticDamageExperiment?'energetic-crew':crewDamageExperiment?'crew-vital':vitalHitsExperiment?'vital-path':'critical',repairPolicy:repairInput.value,magazineRisk:magazineRiskInput.value,magazinePropagation:propagationInput.value,ballisticsMode:ballisticsExperiment?'mesh-path':null,gunneryModel:directFireExperiment?'range-aware':null,kinematicsModel:kinematicsExperiment?'si-drag':null,tacticalModel:tacticsExperiment?'salvo-pressure':null,fireControlModel:individualGunneryExperiment?'per-gun':null,combatModel:fragileCombatExperiment?'fragile-maneuver':null,maneuverRevision:rangeControlExperiment?'range-control-v18':null,rangePolicy:rangePolicyInput.value,yamatoDoctrine:doctrineInputs.yamato.value,iowaDoctrine:doctrineInputs.iowa.value,tacticalOrders:[],ballisticSeaState:seaState,ballisticOceanOffset:nextOceanOffset,yamatoAmmo:yamatoAmmoInput.value,iowaAmmo:iowaAmmoInput.value};
+      playing=false;battleBusy=true;battleError='';loading.textContent='새 교전을 계산 중입니다. 준비되면 재생을 시작합니다.';loading.hidden=false;
+      root.querySelectorAll('.viz-controls').forEach(control=>control.inert=true);updateStatus();
+      await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+      try{
+        if(config!==previousConfig)return;
+        const nextDuel=buildBattle(nextConfig);config=nextConfig;duel=nextDuel;oceanOffset=nextOceanOffset;battleNumber++;
+        effects.clear();trajectories.clear();lastLog='';delete root.querySelector('[data-zone-history]').dataset.key;clock=0;hasRun=true;playing=true;setEnvironment();update();fit(false);
+      }catch(error){if(config===previousConfig)playing=wasPlaying;battleError='새 교전을 준비하지 못했습니다. 설정을 다시 적용해 주세요.';console.error(error);}
+      finally{battleBusy=false;loading.hidden=true;root.querySelectorAll('.viz-controls').forEach(control=>control.inert=false);lastFrame=performance.now();update();persist();}
     }
-    start.addEventListener('click',()=>begin(true));replay.addEventListener('click',()=>begin(false));pause.addEventListener('click',()=>{if(blastPreview&&blastPreview.elapsed>=24){blastPreview.elapsed=0;effects.clear();playing=true;update();fit(false);}else{playing=!playing;updateStatus();}persist();});speedInput.addEventListener('change',()=>{speed=Number(speedInput.value);persist();});
+    start.addEventListener('click',()=>begin(true));replay.addEventListener('click',()=>begin(false));pause.addEventListener('click',()=>{if(doctrineBusy||battleBusy)return;if(blastPreview&&blastPreview.elapsed>=24){blastPreview.elapsed=0;effects.clear();playing=true;update();fit(false);}else{playing=!playing;updateStatus();}persist();});speedInput.addEventListener('change',()=>{speed=Number(speedInput.value);persist();});
     for(const [id,input] of Object.entries(doctrineInputs))input.addEventListener('change',()=>issueDoctrine(id,input.value));
     blastButton.addEventListener('click',()=>{if(blastPreview)finishBlastPreview();else showBlastPreview();});
     encounterInput.addEventListener('change',updateEncounterControls);
