@@ -29,7 +29,7 @@ public_startup = """    if(publicMode==='preview'){
       clock=0;focus='yamato';trajectoryMode=false;focusInput.value=focus;trajectoryInput.checked=false;
     }
     const publicSavedBattle=window.openai?.widgetState;
-    const publicHasSavedBattle=['duel-1','duel-2','duel-3','duel-4','duel-5','duel-6','duel-7','duel-8','duel-9','duel-10','duel-11','duel-12','duel-13','duel-14','duel-15','duel-16'].includes(publicSavedBattle?.privateContent?.version)&&Number.isFinite(publicSavedBattle?.modelContent?.battle?.seed);
+    const publicHasSavedBattle=['duel-1','duel-2','duel-3','duel-4','duel-5','duel-6','duel-7','duel-8','duel-9','duel-10','duel-11','duel-12','duel-13','duel-14','duel-15','duel-16','duel-17'].includes(publicSavedBattle?.privateContent?.version)&&Number.isFinite(publicSavedBattle?.modelContent?.battle?.seed);
     if((publicMode==='battle'||publicMode==='maximum'||publicMode==='he')&&!publicHasSavedBattle){
       config={...config,seed:19440426,encounterMode:publicMode==='maximum'?'maximum':'set-range',rangeKm:publicMode==='maximum'?42:6,yamatoAmmo:publicMode==='he'?'he':'ap',iowaAmmo:publicMode==='he'?'he':'ap'};
       duel=buildBattle(config);clock=0;hasRun=true;speed=publicMode==='he'?1:4;focus='whole';speedInput.value=String(speed);focusInput.value=focus;yamatoAmmoInput.value=config.yamatoAmmo;iowaAmmoInput.value=config.iowaAmmo;
@@ -44,7 +44,7 @@ fragment = fragment.replace(
 )
 controls = (ROOT / 'source/public-controls.js').read_text(encoding='utf-8')
 replace_once("    start.addEventListener('click',()=>begin(true));", controls + "\n    start.addEventListener('click',()=>begin(true));")
-replace_once("privateContent:{version:individualGunneryExperiment?", "privateContent:{publicDraft:publicSettingsChanged()?readPublicSettings():null,version:individualGunneryExperiment?")
+replace_once("privateContent:{version:fragileCombatExperiment?", "privateContent:{publicDraft:publicSettingsChanged()?readPublicSettings():null,version:fragileCombatExperiment?")
 replace_once("iowaEvasion:String(snapshot.ships.iowa.maneuver?.evasionEffect||0)});", "iowaEvasion:String(snapshot.ships.iowa.maneuver?.evasionEffect||0)});\n      refreshPublicControls();")
 replace_once("if(v.blastPreview&&['yamato','iowa'].includes(v.blastPreview.ship)&&[0,1,2].includes(v.blastPreview.turretIndex))showBlastPreview({...v.blastPreview,autoplay:false,restoring:true});", "if(v.blastPreview&&['yamato','iowa'].includes(v.blastPreview.ship)&&[0,1,2].includes(v.blastPreview.turretIndex))showBlastPreview({...v.blastPreview,autoplay:false,restoring:true});\n      restorePublicDraft(v.publicDraft);")
 replace_once("restore(window.openai?.widgetState);window.addEventListener('openai:set_globals'", "restore(window.openai?.widgetState);if(publicMode!=='preview')persist();window.addEventListener('openai:set_globals'")

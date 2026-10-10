@@ -29,6 +29,8 @@ v15 adds per-ship **Repair focus / Balanced doctrine / Attack focus** orders dur
 
 v16 gives all **nine main guns independent loading and release times**. Each gun predicts the moving target from its currently observed velocity and smoothed turn rate, then iterates the aim point with that muzzle’s flight time. It never reads the target’s actual future route. It reduces the excessive shared salvo error and uses observed individual arrivals for gradual corrections. Feed, barrel and turret-crew damage restrict the affected guns; doctrine changes also rescale loading already in progress. The display shows each gun’s remaining loading time and readiness.
 
+v17 is a faster-outcome game adjustment: strong impacts that actually penetrate internal compartments damage local systems, crews and structure more quickly. Blocked and grazing hits do not receive that amplification. Loss of main steam or machinery crews can interrupt generator power and powered ammunition feeds; combined propulsion and feed failure leads to a faster combat-disable result. Maneuvering adds a minimum turn radius appropriate to the enlarged displayed hull, inertia and speed loss while turning. Knot speed, position and ballistics retain the same distance conversion. The evasion display shows the difference, in meters, between the enemy’s launch-time speed-and-turn forecast and the ship’s current position. Fleet camera zoom changes are smoothed.
+
 Reference muzzle speeds: Yamato AP **780 m/s**, common shell (HE approximation) **805 m/s**; Iowa AP **762 m/s**, HC (HE) **819.9 m/s**. Sources: contemporary US Navy [Yamato report O-45(N), pp. 16–17](https://www.fischer-tropsch.org/primary_documents/gvt_reports/USNAVY/USNTMJ%20Reports/USNTMJ-200F-0384-0445%20Report%20O-45%20N.pdf) and [OP1188 firing tables, pp. 61–62](https://www.eugeneleeslover.com/ENGINEERING/OP1188/OP1188_Abridged_Range_Tables_1944.pdf).
 
 ## Run locally
@@ -57,7 +59,7 @@ The landing page's main start button opens a **42 km encounter**. Close-range ba
 
 Battles open paused. Play resumes the current battle. Editing battle conditions displays a pending-changes notice; **Apply settings and restart** or **New battle** uses those selections and a new random seed. **Replay this battle** retains the currently applied conditions and seed. Sea state, playback speed, camera, cutaway and trajectory controls apply immediately. Pending settings survive refreshes and language switching.
 
-Saved v11–v15 battles restore and replay with their original damage and ballistics. **New battle** or **Apply settings and restart** starts a new run with v16 individual guns and motion prediction, operating choices, ballistics and damage models.
+Saved v11–v16 battles restore and replay with their original damage and ballistics. **New battle** or **Apply settings and restart** starts a new run with v17 vulnerable compartments and maneuvering, individual guns, operating choices and ballistics.
 
 ## Edit and rebuild
 

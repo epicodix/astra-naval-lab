@@ -374,7 +374,12 @@
     "탄착 관측 · 개별포 조준 보정": "Observed arrival · Individual gun correction",
     "사격 준비": "Ready",
     "사각 밖 대기": "Waiting for firing arc",
-    "예상 기계 산포이며 명중 확률이 아닙니다. 발사 시 표적의 속도·선회 예측 오차는 별도로 적용됩니다.": "Estimated mechanical dispersion, not a hit probability. Target speed and turn prediction errors are applied separately at release."
+    "예상 기계 산포이며 명중 확률이 아닙니다. 발사 시 표적의 속도·선회 예측 오차는 별도로 적용됩니다.": "Estimated mechanical dispersion, not a hit probability. Target speed and turn prediction errors are applied separately at release.",
+    "피해 모델 · 취약 구획 강화": "Damage model · Vulnerable compartments",
+    "빠른 결착 · 내부 관통에 설비·인력이 쉽게 무너집니다. 선회 시 감속·조준 흔들림이 함께 적용됩니다.": "Faster outcomes: internal penetrations can rapidly disable systems and crews. Turning also reduces speed and disturbs aim.",
+    "저장한 교전의 기존 계산을 재현 중입니다. 새 교전을 누르면 취약 구획 강화와 기동 개선이 적용됩니다.": "Replaying your saved battle with its original model. Select New battle to use vulnerable compartments and improved maneuvering.",
+    "발사 당시 적의 속도·선회 예측과 현재 위치의 차이입니다. 회피 확률이 아니며 실제 포탄과 선체의 접촉으로 판정합니다.": "Difference between the enemy’s launch-time speed and turn prediction and your current position. It is not an evasion probability; hits require actual shell contact with the hull.",
+    "접근탄 없음": "No incoming shells"
   },
   "fragments": {
     "야마토와 아이오와의 가상 일대일 포격전. 부위별 피해가 화력과 속력에 영향을 줍니다. 피해 구획을 켜면 개념적인 기관실과 탄약고 배치를 볼 수 있습니다.": "A hypothetical one-on-one gunnery duel between Yamato and Iowa. Local damage affects firepower and speed. Turn on Damage cutaway to view the schematic machinery spaces and magazines.",
@@ -768,6 +773,15 @@
     "2번포 개별 발사": "gun 2 fired independently",
     "3번포 개별 발사": "gun 3 fired independently",
     "사격 준비": "Ready",
-    "사각 밖 대기": "Waiting for firing arc"
+    "사각 밖 대기": "Waiting for firing arc",
+    "예측 이탈 ": "Prediction drift ",
+    " m · 접근탄 ": " m · Incoming shells ",
+    "선회 감속 ": "Turning speed loss ",
+    "강한 내부 관통 ": "Strong internal penetrations ",
+    "발 · 위험 구획 ": " shots · Critical compartments ",
+    " · 기능 상실 ": " · Failed compartments ",
+    "접근탄 없음": "No incoming shells",
+    "선회율 ": "Turn rate ",
+    " · 급탄 속도 ": " · Feed rate "
   }
 }
