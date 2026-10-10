@@ -25,6 +25,8 @@ In v13, AP favors penetration into protected systems; HE produces a larger local
 
 v14 connects muzzle speed, air drag and gravity in one flight equation. It solves the lower firing angle and flight time together using current range and target motion. Free flight starts at the articulated muzzle along its bore; collision detection, visible shells and observed trails use that same path. Dashed lines show the launch-time prediction without dispersion; solid lines show the path already traveled. Ships are enlarged relative to separation to show detail, so the whole scene is not to scale. Ship knots and shell m/s use simulation time: 1× plays one simulation second per real second. Drag is a game approximation fitted to the range envelope, rather than an exact reconstruction of every historical firing-table entry.
 
+v15 adds per-ship **Repair focus / Balanced doctrine / Attack focus** orders during battle as a game experiment. The same available crew capacity is divided between gunnery and damage response. Attack focus accelerates loading and aiming corrections while weakening damage response. Its **×1.8 incoming critical risk** and **×1.5 outgoing central-penetration critical risk** are conditional relative multipliers for actual internal vital paths, not hit or instant-sinking probabilities. A salvo has a shared aiming error plus per-barrel range and lateral dispersion. Stable target tracking modestly improves first-shot confidence; only observed arrivals inform corrections. Maneuvering, smoke and fire-control damage reduce confidence. Orders affect the current and future battle; airborne shells retain their launch conditions. Orders persist and replay. Seeking backward and issuing a new order replaces the orders after that point with the new choice.
+
 Reference muzzle speeds: Yamato AP **780 m/s**, common shell (HE approximation) **805 m/s**; Iowa AP **762 m/s**, HC (HE) **819.9 m/s**. Sources: contemporary US Navy [Yamato report O-45(N), pp. 16–17](https://www.fischer-tropsch.org/primary_documents/gvt_reports/USNAVY/USNTMJ%20Reports/USNTMJ-200F-0384-0445%20Report%20O-45%20N.pdf) and [OP1188 firing tables, pp. 61–62](https://www.eugeneleeslover.com/ENGINEERING/OP1188/OP1188_Abridged_Range_Tables_1944.pdf).
 
 ## Run locally
@@ -53,7 +55,7 @@ The landing page's main start button opens a **42 km encounter**. Close-range ba
 
 Battles open paused. Play resumes the current battle. Editing battle conditions displays a pending-changes notice; **Apply settings and restart** or **New battle** uses those selections and a new random seed. **Replay this battle** retains the currently applied conditions and seed. Sea state, playback speed, camera, cutaway and trajectory controls apply immediately. Pending settings survive refreshes and language switching.
 
-Saved v11–v13 battles restore and replay with their original damage and ballistics. **New battle** or **Apply settings and restart** starts a new run with v14 ballistics and the ammunition, fuel, personnel and damage-control model.
+Saved v11–v14 battles restore and replay with their original damage and ballistics. **New battle** or **Apply settings and restart** starts a new run with v15 aiming and operating choices, ballistics and damage models.
 
 ## Edit and rebuild
 

@@ -91,7 +91,7 @@
       publicControlText(publicSummaryFields.accuracyScale,'양측 명중률 보정 · '+applied.accuracyScale.toFixed(2)+'×');
       publicControlText(publicSummaryFields.yamatoAmmo,'야마토 탄종 · '+publicConditionLabels.yamatoAmmo[applied.yamatoAmmo]);
       publicControlText(publicSummaryFields.iowaAmmo,'아이오와 탄종 · '+publicConditionLabels.iowaAmmo[applied.iowaAmmo]);
-      publicControlText(publicSettingsNotice,blastPreview?'유폭 연출 중에는 교전 조건을 바꿀 수 없습니다. 교전으로 돌아가서 변경하세요.':pending?'변경한 조건은 아직 적용되지 않았습니다. 설정 적용하고 다시 시작을 누르면 새 교전을 시작합니다.':config.kinematicsModel!=='si-drag'?'저장한 교전의 기존 탄도를 재현 중입니다. 새 교전을 누르면 개선된 탄도가 적용됩니다.':'위 조건으로 교전 중입니다. 조건을 바꾼 뒤 설정 적용하고 다시 시작을 누르세요.');
+      publicControlText(publicSettingsNotice,blastPreview?'유폭 연출 중에는 교전 조건을 바꿀 수 없습니다. 교전으로 돌아가서 변경하세요.':pending?'변경한 조건은 아직 적용되지 않았습니다. 설정 적용하고 다시 시작을 누르면 새 교전을 시작합니다.':config.tacticalModel!=='salvo-pressure'?'저장한 교전의 기존 계산을 재현 중입니다. 새 교전을 누르면 개선된 조준·운용 모델이 적용됩니다.':'위 조건으로 교전 중입니다. 조건을 바꾼 뒤 설정 적용하고 다시 시작을 누르세요.');
       publicApplyButton.disabled=!pending||!!blastPreview;
       publicApplyButton.hidden=!pending||!!blastPreview;
       publicSettingsPanel.dataset.pending=String(pending);
