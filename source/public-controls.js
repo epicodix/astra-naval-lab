@@ -46,6 +46,7 @@
     publicSettingsActions.append(publicSettingsNotice,publicApplyButton);
     publicSettingsPanel.append(publicAppliedSummary,publicScaleNote,publicSettingsActions);
     root.querySelector('.viz-controls').after(publicSettingsPanel);
+    let refreshPublicResponsive=()=>{};
     const publicRawDisplayText=new WeakMap();
     function publicControlText(element,value){
       if(publicRawDisplayText.get(element)!==value){publicRawDisplayText.set(element,value);element.textContent=value;}
@@ -104,6 +105,7 @@
       publicApplyButton.hidden=!pending||!!blastPreview;
       publicSettingsPanel.dataset.pending=String(pending);
       Object.assign(stage.dataset,{publicSettingsPending:String(pending),publicConditionControlsDisabled:String(conditionsDisabled),publicAppliedSettings:JSON.stringify(applied),publicDraftSettings:JSON.stringify(readPublicSettings())});
+      refreshPublicResponsive();
     }
     function restorePublicDraft(draft){
       const settings=validatePublicSettings(draft);

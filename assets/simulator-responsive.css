@@ -1,0 +1,59 @@
+/* Desktop keeps the full controls; small screens put play and the fleet first. */
+#naval-duel .public-mobile-panel{display:contents}
+#naval-duel .public-mobile-panel>summary{display:none}
+#naval-duel .public-option-group{display:contents;border:0;padding:0;margin:0;min-width:0}
+#naval-duel .public-option-group>legend{display:none}
+#naval-duel .public-mobile-actions{display:contents}
+#naval-duel [hidden]{display:none!important}
+@media(max-width:720px){
+  #naval-duel{overflow-wrap:anywhere}
+  #naval-duel .btn,#naval-duel .form-select{min-height:44px;font-size:16px;max-width:100%}
+  #naval-duel .btn{white-space:normal;line-height:1.35;padding:10px 12px}
+  #naval-duel .form-select{width:100%;min-width:0}
+  #naval-duel .form-range{min-height:44px}
+  #naval-duel .form-check{min-height:44px;display:flex;align-items:center;padding:8px;gap:10px;margin:0}
+  #naval-duel .form-check-input{width:22px;height:22px;flex:0 0 22px}
+  #naval-duel .public-playback{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:stretch;gap:8px;margin:12px 0}
+  #naval-duel .public-playback>.btn{width:100%;justify-content:center}
+  #naval-duel .public-playback>.form-label{display:flex;flex-direction:column;justify-content:center;min-width:0;gap:3px;font-size:12px}
+  #naval-duel .public-playback [data-pause]{background:var(--primary);color:var(--primary-foreground)}
+  #naval-duel .duel-stage{height:clamp(240px,80vw,340px);border-radius:10px}
+  #naval-duel [data-distance-summary]{margin-top:8px;gap:4px 12px}
+  #naval-duel .duel-timeline{margin:6px 0 10px}
+  #naval-duel .public-mobile-actions{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 10px}
+  #naval-duel .public-mobile-actions>.btn{flex:1 1 140px;font-size:14px}
+  #naval-duel .public-mobile-actions>[data-public-apply]{flex:1 0 100%;background:var(--primary);color:var(--primary-foreground)}
+  #naval-duel .public-mobile-panel{display:block;margin:0 0 10px;border:1px solid var(--border);border-radius:10px;min-width:0;overflow:hidden}
+  #naval-duel .public-mobile-panel>summary{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:3px 10px;position:relative;padding:12px 38px 12px 14px;min-height:44px;box-sizing:border-box;cursor:pointer;list-style:none}
+  #naval-duel .public-mobile-panel>summary::-webkit-details-marker{display:none}
+  #naval-duel .public-mobile-panel>summary::after{content:'+';position:absolute;right:14px;top:14px;font-size:20px;line-height:24px}
+  #naval-duel .public-mobile-panel[open]>summary::after{content:'−'}
+  #naval-duel .public-mobile-panel>summary:focus-visible{outline:2px solid var(--primary);outline-offset:-3px}
+  #naval-duel .public-mobile-hint{grid-column:1;font-size:12px;color:var(--muted-foreground);line-height:1.5}
+  #naval-duel .public-mobile-pending{grid-column:2;grid-row:1/3;align-self:center;background:var(--primary);color:var(--primary-foreground);border-radius:5px;padding:4px 6px;font-size:11px}
+  #naval-duel .public-mobile-panel[data-pending=true]{border-color:var(--primary)}
+  #naval-duel .public-condition-row{display:flex;flex-direction:column;align-items:stretch;padding:0 12px;gap:0}
+  #naval-duel .public-option-group{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:start;gap:12px 10px;padding:12px 0;margin:0;min-width:0;border:0;border-top:1px solid var(--border)}
+  #naval-duel .public-option-group>legend{display:block;float:left;grid-column:1/-1;width:100%;font-size:13px;font-weight:600;color:var(--muted-foreground);margin-bottom:0;padding:0}
+  #naval-duel .public-option-group>.form-label{display:flex;flex-direction:column;min-width:0;font-size:13px;gap:6px}
+  #naval-duel .public-option-group .duel-accuracy{grid-column:1/-1;max-width:none;min-width:0}
+  #naval-duel [data-public-settings]{border:0;border-top:1px solid var(--border);border-radius:0;margin:0;padding:12px}
+  #naval-duel [data-public-applied-summary]{display:grid;grid-template-columns:1fr;gap:6px;font-size:12px}
+  #naval-duel [data-public-settings-notice]{min-width:0;font-size:12px}
+  #naval-duel [data-public-settings]>.viz-row:last-child{display:flex;flex-direction:column;align-items:stretch}
+  #naval-duel [data-public-apply]{width:100%;margin-top:6px;font-size:14px}
+  #naval-duel [data-public-scale-note]{font-size:11px;margin:10px 0}
+  #naval-duel .duel-tactics{margin:0;border:0;padding:12px}
+  #naval-duel .duel-tactics .viz-controls{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
+  #naval-duel .duel-tactics .form-label{display:flex;flex-direction:column;min-width:0;gap:6px;font-size:13px}
+  #naval-duel [data-mobile-panel=camera]>.viz-controls{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;padding:12px}
+  #naval-duel [data-mobile-panel=camera] :is(.duel-focus,.duel-sea,.form-check){grid-column:1/-1;min-width:0}
+  #naval-duel .duel-status{grid-template-columns:minmax(0,1fr);gap:10px;margin:0;padding:12px}
+  #naval-duel .duel-status>.card{min-width:0;padding:12px}
+  #naval-duel [data-trajectory-legend]{font-size:11px;margin:4px 0 12px}
+  #naval-duel .duel-sections .viz-controls{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:380px){
+  #naval-duel .public-option-group{grid-template-columns:minmax(0,1fr)}
+  #naval-duel .duel-tactics .viz-controls{grid-template-columns:minmax(0,1fr)}
+}

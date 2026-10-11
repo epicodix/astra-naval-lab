@@ -43,9 +43,10 @@ fragment = fragment.replace(
     "rangeInput.value=String(config.encounterMode==='maximum'?18:config.rangeKm);encounterInput.value=config.encounterMode;", 1,
 )
 controls = (ROOT / 'source/public-controls.js').read_text(encoding='utf-8')
-replace_once("    start.addEventListener('click',()=>begin(true));", controls + "\n    start.addEventListener('click',()=>begin(true));")
+responsive = (ROOT / 'source/public-responsive.js').read_text(encoding='utf-8')
+replace_once("    start.addEventListener('click',()=>begin(true));", controls + "\n" + responsive + "\n    start.addEventListener('click',()=>begin(true));")
 replace_once("privateContent:{version:rangeControlExperiment?", "privateContent:{publicDraft:publicSettingsChanged()?readPublicSettings():null,version:rangeControlExperiment?")
-replace_once("iowaEvasion:String(snapshot.ships.iowa.maneuver?.evasionEffect||0),maneuverRevision:config.maneuverRevision||'legacy',engagementModel:config.engagementModel||'legacy',rangePolicy:config.rangePolicy||'legacy',targetRangeKm:String(duel.initialConfig.targetRangeKm||config.rangeKm)});", "iowaEvasion:String(snapshot.ships.iowa.maneuver?.evasionEffect||0),maneuverRevision:config.maneuverRevision||'legacy',engagementModel:config.engagementModel||'legacy',rangePolicy:config.rangePolicy||'legacy',targetRangeKm:String(duel.initialConfig.targetRangeKm||config.rangeKm)});\n      refreshPublicControls();")
+replace_once("      updateTactics();\n    }\n    function updateTactics(){", "      updateTactics();\n      refreshPublicControls();\n    }\n    function updateTactics(){")
 replace_once("if(v.blastPreview&&['yamato','iowa'].includes(v.blastPreview.ship)&&[0,1,2].includes(v.blastPreview.turretIndex))showBlastPreview({...v.blastPreview,autoplay:false,restoring:true});", "if(v.blastPreview&&['yamato','iowa'].includes(v.blastPreview.ship)&&[0,1,2].includes(v.blastPreview.turretIndex))showBlastPreview({...v.blastPreview,autoplay:false,restoring:true});\n      restorePublicDraft(v.publicDraft);")
 replace_once("restore(window.openai?.widgetState);window.addEventListener('openai:set_globals'", "restore(window.openai?.widgetState);if(publicMode!=='preview')persist();window.addEventListener('openai:set_globals'")
 replace_once("update(false);});loading.hidden=true;", "update(false);});loading.hidden=true;root.dataset.publicReady='true';root.querySelectorAll('.viz-controls').forEach(control=>control.inert=false);")
@@ -66,6 +67,7 @@ fragment += """
 """
 catalog = json.loads((ROOT / 'assets/simulation-en.json').read_text(encoding='utf-8'))
 catalog_json = json.dumps(catalog, ensure_ascii=False, separators=(',', ':')).replace('<', '\\u003c')
+fragment += '<style>' + (ROOT / 'assets/simulator-responsive.css').read_text(encoding='utf-8') + '</style>\n'
 fragment += '<script type="application/json" id="astra-english-catalog">' + catalog_json + '</script>\n'
 fragment += '<script>' + (ROOT / 'source/simulation-i18n.js').read_text(encoding='utf-8').replace('</script', '<\\/script') + '</script>\n'
 if template.count("__ASTRA_SIMULATION_FRAGMENT__") != 1:
