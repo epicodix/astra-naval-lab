@@ -59,7 +59,8 @@
       }
       refreshPublicResponsive=()=>{
         const applied=validatePublicSettings(config)||readPublicSettings();
-        publicControlText(settings.description,applied.rangeKm+' km · '+(applied.yamatoAmmo==='he'?'HE':'AP')+' / '+(applied.iowaAmmo==='he'?'HE':'AP')+' · '+applied.accuracyScale.toFixed(2)+'×');
+        const draft=readPublicSettings(),rangeChanged=draft.rangeKm!==applied.rangeKm||draft.encounterMode!==applied.encounterMode;
+        publicControlText(settings.description,'현재 교전 · '+applied.rangeKm+' km'+(rangeChanged?' / 새 시작 · '+draft.rangeKm+' km':'')+' · '+(applied.yamatoAmmo==='he'?'HE':'AP')+' / '+(applied.iowaAmmo==='he'?'HE':'AP')+' · '+applied.accuracyScale.toFixed(2)+'×');
         pendingBadge.hidden=!publicSettingsChanged();
         settings.panel.dataset.pending=String(!pendingBadge.hidden);
         orders.panel.hidden=tacticalPanel.hidden;damage.panel.hidden=status.hidden;
