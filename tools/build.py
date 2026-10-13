@@ -18,6 +18,7 @@ replace_once(
     '<div id="naval-duel" data-experiment="energetic-damage" data-public-mode="" data-public-lang="ko" data-public-ready="false">',
 )
 fragment = fragment.replace('class="viz-controls"', 'class="viz-controls" inert')
+fragment = fragment.replace('class="viz-controls duel-observer-controls"', 'class="viz-controls duel-observer-controls" inert')
 fragment = fragment.replace('aria-label="교전 거리"', 'aria-label="교전 거리" data-distance-summary', 1)
 fragment = fragment.replace('[aria-label="교전 거리"]', '[data-distance-summary]')
 replace_once(
@@ -32,7 +33,7 @@ public_startup = """    if(publicMode==='preview'){
     const publicHasSavedBattle=['duel-1','duel-2','duel-3','duel-4','duel-5','duel-6','duel-7','duel-8','duel-9','duel-10','duel-11','duel-12','duel-13','duel-14','duel-15','duel-16','duel-17','duel-18','duel-19','duel-20','duel-21','duel-22','duel-23'].includes(publicSavedBattle?.privateContent?.version)&&Number.isFinite(publicSavedBattle?.modelContent?.battle?.seed);
     if((publicMode==='duel'||publicMode==='battle'||publicMode==='maximum'||publicMode==='he'||publicMode==='shield')&&!publicHasSavedBattle){
       config={...config,shieldMode:publicMode==='shield'?'energy-shell':null,seed:19440426,encounterMode:publicMode==='maximum'?'maximum':'set-range',rangeKm:publicMode==='maximum'?36:publicMode==='duel'?24:6,yamatoAmmo:(publicMode==='he'||publicMode==='shield')?'he':'ap',iowaAmmo:(publicMode==='he'||publicMode==='shield')?'he':'ap'};
-      duel=buildBattle(config);clock=0;hasRun=true;speed=publicMode==='shield'?.25:publicMode==='he'?1:4;shieldInput.value=config.shieldMode||'none';focus='whole';speedInput.value=String(speed);focusInput.value=focus;yamatoAmmoInput.value=config.yamatoAmmo;iowaAmmoInput.value=config.iowaAmmo;
+      duel=buildBattle(config);clock=0;hasRun=true;speed=publicMode==='shield'?.25:publicMode==='he'?1:4;shieldInput.value=config.shieldMode||'none';cameraMode='battle';observerShip='yamato';focus=observerShip;speedInput.value=String(speed);focusInput.value=focus;yamatoAmmoInput.value=config.yamatoAmmo;iowaAmmoInput.value=config.iowaAmmo;
     }
 """
 if fragment.count(marker) != 1:

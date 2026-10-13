@@ -16,6 +16,7 @@ Set the engagement range and sea conditions, then watch the ships maneuver and e
 - Independent AP / HE selection for each ship, with distinct impact blasts, fragments and ignition
 - Fuel leaks and fires caused by actual internal damage, with finite fuel and shared firefighting capacity
 - Playback, pause, timeline seeking and slow motion
+- Free orbit, battle observation, ship tracking and incoming-shell impact views
 
 This is a **game model inspired by historical ships and equipment**. Ballistics, armor, damage and explosion probabilities use approximations; this project is not a calibrated military simulation. A small number of vital penetrations can be lethal, but the simulation does not trigger an explosion simply because a hit counter reaches a threshold.
 
@@ -34,6 +35,10 @@ v17 is a faster-outcome game adjustment: strong impacts that actually penetrate 
 v18 separates initial encounter distance from range policy. **Hold engagement range** steers using the opponent's current position and separation; zigzagging remains centered on that target range. A 42 km encounter closes to roughly 36 km so both ships can fire, then holds long range. **Close while engaging** instead targets 6 km. Turning, inertia and propulsion damage make this a steering objective rather than an instantly fixed distance. When the same preset is open in several tabs, the most recently opened tab owns saving; older tabs cannot overwrite its settings.
 
 v19 computes shared aiming error in meters using actual range. It removes the kilometer-scale errors caused by the display hull enlargement factor while preserving visibility, fire-control, maneuver and observed-impact corrections. The main start preset is a **24 km gunfire exchange**; long-range encounters start at **36 km**, within both ships’ firing range. Saved 42 km battles replay their original version. Damage, penetration and physical contact rules are unchanged.
+
+New battles use **v22 for naval combat / v23 for SF shields**, with physical hull length and separation on the same scale. Yamato’s 263 m hull spans its native model length of 110 units, so 6 km is about 22.81 hull lengths. Camera close-ups leave the model and collision geometry unchanged. **View full-scale separation** shows a 1 km ruler with smaller 263 m intervals.
+
+The **Observation camera** selector stays directly above the scene, including on mobile. **Free orbit** lets you rotate and zoom. **Battle view** watches the selected ship’s gunfire toward the enemy, while **Ship tracking** follows its course and turns. **Impact tracking** follows incoming shells and their arrivals near the selected ship. A distant opponent retains its physical size in the scene. Drag during an automatic view to return to free orbit. These controls move only the camera; they preserve battle time, scale, ballistics, collision checks and results.
 
 Reference muzzle speeds: Yamato AP **780 m/s**, common shell (HE approximation) **805 m/s**; Iowa AP **762 m/s**, HC (HE) **819.9 m/s**. Sources: contemporary US Navy [Yamato report O-45(N), pp. 16–17](https://www.fischer-tropsch.org/primary_documents/gvt_reports/USNAVY/USNTMJ%20Reports/USNTMJ-200F-0384-0445%20Report%20O-45%20N.pdf) and [OP1188 firing tables, pp. 61–62](https://www.eugeneleeslover.com/ENGINEERING/OP1188/OP1188_Abridged_Range_Tables_1944.pdf).
 
@@ -64,7 +69,7 @@ The landing page's main start button opens a **24 km gunfire exchange**. The 36 
 
 Battles open paused. Play resumes the current battle. Editing battle conditions displays a pending-changes notice; **Apply settings and restart** or **New battle** uses those selections and a new random seed. **Replay this battle** retains the currently applied conditions and seed. Sea state, playback speed, camera, cutaway and trajectory controls apply immediately. Pending settings survive refreshes and language switching.
 
-Saved v11–v18 battles restore and replay with their original damage, ballistics and routes. **New battle** or **Apply settings and restart** starts a new run with v19 range-based aiming, range policy, vulnerable compartments, individual guns, operating choices and ballistics.
+Saved v9–v21 battles restore and replay with their original damage, ballistics, routes and coordinates. **New battle** or **Apply settings and restart** starts a new run with physical hull scale, range-based aiming, range policy, vulnerable compartments, individual guns, operating choices and ballistics.
 
 ## Edit and rebuild
 
