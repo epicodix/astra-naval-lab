@@ -60,3 +60,5 @@
 
 #naval-duel .duel-shield-summary{padding:10px 12px;margin-block:8px;border:1px solid rgba(52,204,234,.4);border-radius:8px;color:#58d9f4;background:rgba(14,83,108,.15);font-size:12px;line-height:1.6}
 #naval-duel [data-shield-replay]{border-color:#269bbb;color:#63dbf5}
+
+#naval-duel .duel-metric-info{padding:8px 12px;border-left:2px solid var(--primary);margin-block:6px;color:var(--text);line-height:1.6}
