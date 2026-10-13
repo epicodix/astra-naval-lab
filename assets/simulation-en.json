@@ -417,7 +417,13 @@
     "선택한 조건은 아직 적용되지 않았습니다. ‘선택한 설정으로 새 교전’을 누르세요. ‘현재 교전 계속’은 기존 교전을 이어갑니다.": "Your selected settings are pending. Choose New battle with selected settings to apply them. Resume current battle continues the existing battle.",
     "위 조건으로 교전 중입니다. 조건을 바꾼 뒤 선택한 설정으로 새 교전을 누르세요.": "These settings are applied to the current battle. Edit them, then choose New battle with selected settings.",
     "저장한 교전은 이전 배치로 재생됩니다. 새 교전부터 선택한 거리에 비례해서 함선 간격이 벌어집니다.": "Your saved battle retains its original ship positions. New battles place the ships farther apart as the selected starting range increases.",
-    "선택한 거리가 멀수록 함선 사이 간격도 벌어집니다. 함선은 디테일이 보이도록 확대 표시합니다. 1×는 시뮬레이션 1초를 실제 1초에 재생합니다.": "A longer starting range places the ships farther apart. Ships are enlarged to show their detail. At 1×, one simulation second plays in one real second."
+    "선택한 거리가 멀수록 함선 사이 간격도 벌어집니다. 함선은 디테일이 보이도록 확대 표시합니다. 1×는 시뮬레이션 1초를 실제 1초에 재생합니다.": "A longer starting range places the ships farther apart. Ships are enlarged to show their detail. At 1×, one simulation second plays in one real second.",
+    "전투 모드": "Battle mode",
+    "일반 함포전": "Naval battle",
+    "SF 방어 실드": "SF defensive shields",
+    "실드 붕괴 슬로모션": "Shield collapse in slow motion",
+    "SF 실드": "SF shield",
+    "붕괴 · 방호 없음": "Collapsed · Unprotected"
   },
   "fragments": {
     "야마토와 아이오와의 가상 일대일 포격전. 부위별 피해가 화력과 속력에 영향을 줍니다. 피해 구획을 켜면 개념적인 기관실과 탄약고 배치를 볼 수 있습니다.": "A hypothetical one-on-one gunnery duel between Yamato and Iowa. Local damage affects firepower and speed. Turn on Damage cutaway to view the schematic machinery spaces and magazines.",
@@ -838,6 +844,19 @@
     " 목표 · ": " target · ",
     "장거리 맞포격": "long-range exchange",
     "현재 교전 · ": "Current battle · ",
-    " / 새 시작 · ": " / New start · "
+    " / 새 시작 · ": " / New start · ",
+    "전투 모드 · ": "Battle mode · ",
+    "SF 실드 · ": "SF shields · ",
+    " · SF 실드": " · SF shields",
+    "붕괴 · 방호 없음": "Collapsed · Unprotected",
+    "실드 요격": "Shield interception",
+    "실드 붕괴": "Shield collapse",
+    "공중 기폭": "Air detonation",
+    "에너지 실드": "Energy shield",
+    "실드 차단": "Shield intercept",
+    "포탄 공중 폭발": "Shell airburst",
+    "방호 활성": "Protection active",
+    "SF 방어 실드": "SF defensive shields",
+    "일반 함포전": "Naval battle"
   }
 }
