@@ -37,7 +37,7 @@
       const damage=makeMobilePanel('damage','함선 상태','피탄 · 기관 · 함포반',[status]);
       const quickActions=document.createElement('div');quickActions.className='viz-controls public-mobile-actions';quickActions.inert=root.dataset.publicReady!=='true';
       const applyHome=publicApplyButton.parentElement;
-      quickActions.append(root.querySelector('[data-return]'),shieldReplayButton,blastButton);cameraRow.appendChild(quickActions);
+      quickActions.append(root.querySelector('[data-return]'),worldViewButton,shieldReplayButton,blastButton);cameraRow.appendChild(quickActions);
       playbackRow.classList.add('public-playback');conditionRow.classList.add('public-condition-row');
       let appliedMobile=null;
       function applyResponsiveLayout(){
@@ -49,11 +49,11 @@
         for(const node of mobile?[pause,speedLabel,start,replay]:[start,replay,pause,speedLabel])playbackRow.appendChild(node);
         if(mobile){
           quickActions.insertBefore(publicApplyButton,blastButton);
-          for(const node of [heading,playbackRow,stage,distance,shieldSummary,timeline,quickActions,settings.panel,orders.panel,camera.panel,legend,damage.panel,sections,history])root.appendChild(node);
+          for(const node of [heading,playbackRow,stage,distance,metricSummary,shieldSummary,timeline,quickActions,settings.panel,orders.panel,camera.panel,legend,damage.panel,sections,history])root.appendChild(node);
         }else{
           applyHome.appendChild(publicApplyButton);
           cameraRow.appendChild(quickActions);
-          for(const node of [heading,settings.panel,orders.panel,playbackRow,camera.panel,legend,stage,distance,shieldSummary,timeline,damage.panel,sections,history])root.appendChild(node);
+          for(const node of [heading,settings.panel,orders.panel,playbackRow,camera.panel,legend,stage,distance,metricSummary,shieldSummary,timeline,damage.panel,sections,history])root.appendChild(node);
         }
         appliedMobile=mobile;root.dataset.mobileLayout=String(mobile);
       }

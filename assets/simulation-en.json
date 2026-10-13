@@ -423,7 +423,12 @@
     "SF 방어 실드": "SF defensive shields",
     "실드 붕괴 슬로모션": "Shield collapse in slow motion",
     "SF 실드": "SF shield",
-    "붕괴 · 방호 없음": "Collapsed · Unprotected"
+    "붕괴 · 방호 없음": "Collapsed · Unprotected",
+    "실제 거리 전체 보기": "View full-scale separation",
+    "실척 · 야마토 전장 263 m": "True scale · Yamato length 263 m",
+    "카메라 확대 · 축척 유지": "Camera close-up · True scale",
+    "함선과 함간 거리는 같은 축척입니다. 야마토 전장 263 m를 기준으로 6 km는 선체 길이의 22.8배입니다. 디테일은 함선 확대에서 볼 수 있습니다.": "Ships and separation share the same scale. With Yamato’s 263 m hull as the reference, 6 km spans 22.8 hull lengths. Select a ship for a camera close-up.",
+    "저장된 교전은 이전의 확대 축척으로 재생됩니다. 새 교전부터 실제 함선 길이를 기준으로 거리를 계산합니다.": "This saved battle uses the previous enlarged scale. New battles use physical hull length to calibrate distance."
   },
   "fragments": {
     "야마토와 아이오와의 가상 일대일 포격전. 부위별 피해가 화력과 속력에 영향을 줍니다. 피해 구획을 켜면 개념적인 기관실과 탄약고 배치를 볼 수 있습니다.": "A hypothetical one-on-one gunnery duel between Yamato and Iowa. Local damage affects firepower and speed. Turn on Damage cutaway to view the schematic machinery spaces and magazines.",
@@ -857,6 +862,9 @@
     "포탄 공중 폭발": "Shell airburst",
     "방호 활성": "Protection active",
     "SF 방어 실드": "SF defensive shields",
-    "일반 함포전": "Naval battle"
+    "일반 함포전": "Naval battle",
+    " km · 야마토 전장(263 m) ": " km · Yamato hull lengths (263 m) ",
+    "배 · 중심 간 거리": "× · Centre-to-centre range",
+    " · 큰 눈금 1 km / 작은 눈금 263 m": " · Major ticks 1 km / minor ticks 263 m"
   }
 }

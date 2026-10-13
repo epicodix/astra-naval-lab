@@ -86,7 +86,7 @@
     }
     function refreshPublicControls(){
       const pending=publicSettingsChanged(),applied=validatePublicSettings(config)||readPublicSettings();
-      publicControlText(publicScaleNote,config.coordinateModel==='fixed-scale'?'선택한 거리가 멀수록 함선 사이 간격도 벌어집니다. 함선은 디테일이 보이도록 확대 표시합니다. 1×는 시뮬레이션 1초를 실제 1초에 재생합니다.':'함선은 디테일이 보이도록 거리 대비 확대 표시됩니다. 1×는 시뮬레이션 1초를 실제 1초에 재생합니다.');
+      publicControlText(publicScaleNote,config.coordinateModel==='metric-scale'?'함선과 함간 거리는 같은 축척입니다. 야마토 전장 263 m를 기준으로 6 km는 선체 길이의 22.8배입니다. 디테일은 함선 확대에서 볼 수 있습니다.':config.coordinateModel==='fixed-scale'?'선택한 거리가 멀수록 함선 사이 간격도 벌어집니다. 함선은 디테일이 보이도록 확대 표시합니다. 1×는 시뮬레이션 1초를 실제 1초에 재생합니다.':'함선은 디테일이 보이도록 거리 대비 확대 표시됩니다. 1×는 시뮬레이션 1초를 실제 1초에 재생합니다.');
       publicControlText(publicKinematics,config.kinematicsModel==='si-drag'?'탄도 · 초속·감속·중력':'탄도 · 이전 교전 재현');
       publicControlText(publicDamageModel,config.combatModel==='fragile-maneuver'?'피해 모델 · 취약 구획 강화':config.damageModel==='energetic-crew'?'피해 모델 · 탄종·연료·인력':config.damageModel==='crew-vital'?'피해 모델 · 인력·손상통제':'피해 모델 · 이전 교전 재현');
       const commandsBusy=doctrineBusy||battleBusy,conditionsDisabled=!!blastPreview||commandsBusy;
@@ -104,7 +104,7 @@
       publicControlText(publicSummaryFields.accuracyScale,'양측 명중률 보정 · '+applied.accuracyScale.toFixed(2)+'×');
       publicControlText(publicSummaryFields.yamatoAmmo,'야마토 탄종 · '+publicConditionLabels.yamatoAmmo[applied.yamatoAmmo]);
       publicControlText(publicSummaryFields.iowaAmmo,'아이오와 탄종 · '+publicConditionLabels.iowaAmmo[applied.iowaAmmo]);
-      publicControlText(publicSettingsNotice,blastPreview?'유폭 연출 중에는 교전 조건을 바꿀 수 없습니다. 교전으로 돌아가서 변경하세요.':battleBusy?'새 교전을 계산 중입니다. 준비되면 재생을 시작합니다.':doctrineBusy?'운용 명령을 적용 중입니다. 완료되면 교전 조건을 변경할 수 있습니다.':battleError?'새 교전을 준비하지 못했습니다. 설정을 다시 적용해 주세요.':pending?'선택한 조건은 아직 적용되지 않았습니다. ‘선택한 설정으로 새 교전’을 누르세요. ‘현재 교전 계속’은 기존 교전을 이어갑니다.':config.engagementModel!=='mutual-fire'?'저장한 교전의 기존 계산을 재현 중입니다. 새 교전을 누르면 거리 기반 조준 보정과 양함 사격권에서의 조우가 적용됩니다.':config.coordinateModel!=='fixed-scale'?'저장한 교전은 이전 배치로 재생됩니다. 새 교전부터 선택한 거리에 비례해서 함선 간격이 벌어집니다.':'위 조건으로 교전 중입니다. 조건을 바꾼 뒤 선택한 설정으로 새 교전을 누르세요.');
+      publicControlText(publicSettingsNotice,blastPreview?'유폭 연출 중에는 교전 조건을 바꿀 수 없습니다. 교전으로 돌아가서 변경하세요.':battleBusy?'새 교전을 계산 중입니다. 준비되면 재생을 시작합니다.':doctrineBusy?'운용 명령을 적용 중입니다. 완료되면 교전 조건을 변경할 수 있습니다.':battleError?'새 교전을 준비하지 못했습니다. 설정을 다시 적용해 주세요.':pending?'선택한 조건은 아직 적용되지 않았습니다. ‘선택한 설정으로 새 교전’을 누르세요. ‘현재 교전 계속’은 기존 교전을 이어갑니다.':config.coordinateModel!=='metric-scale'?'저장된 교전은 이전의 확대 축척으로 재생됩니다. 새 교전부터 실제 함선 길이를 기준으로 거리를 계산합니다.':'위 조건으로 교전 중입니다. 조건을 바꾼 뒤 선택한 설정으로 새 교전을 누르세요.');
       publicApplyButton.disabled=!pending||conditionsDisabled;
       publicApplyButton.hidden=!pending||!!blastPreview;
       publicSettingsPanel.dataset.pending=String(pending);
