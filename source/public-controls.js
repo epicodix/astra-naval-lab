@@ -1,7 +1,8 @@
     // Public-player controls. This snippet runs inside the existing simulator closure.
-    const publicSettingKeys=['encounterMode','rangeKm','rangePolicy','visibility','accuracyScale','maneuverMode','repairPolicy','magazineRisk','magazinePropagation','yamatoAmmo','iowaAmmo'];
-    const publicConditionInputs=[encounterInput,rangeInput,rangePolicyInput,visibilityInput,accuracyInput,maneuverInput,repairInput,magazineRiskInput,propagationInput,yamatoAmmoInput,iowaAmmoInput];
+    const publicSettingKeys=['shieldMode','encounterMode','rangeKm','rangePolicy','visibility','accuracyScale','maneuverMode','repairPolicy','magazineRisk','magazinePropagation','yamatoAmmo','iowaAmmo'];
+    const publicConditionInputs=[shieldInput,encounterInput,rangeInput,rangePolicyInput,visibilityInput,accuracyInput,maneuverInput,repairInput,magazineRiskInput,propagationInput,yamatoAmmoInput,iowaAmmoInput];
     const publicConditionLabels={
+      shieldMode:{none:'일반 함포전','energy-shell':'SF 방어 실드'},
       visibility:{clear:'맑음',haze:'박무',night:'야간'},
       maneuverMode:{evasive:'지그재그 기동',steady:'안정 항해'},
       rangePolicy:{hold:'거리 유지',close:'접근 교전'},
@@ -54,6 +55,7 @@
     function validatePublicSettings(candidate){
       if(!candidate||typeof candidate!=='object'||Array.isArray(candidate))return null;
       const settings={};
+      const shieldMode=candidate.shieldMode??'none';if(!['none','energy-shell'].includes(shieldMode))return null;settings.shieldMode=shieldMode;
       const choices={encounterMode:['maximum','set-range'],visibility:['clear','haze','night'],maneuverMode:['evasive','steady'],repairPolicy:['balanced','magazine-priority','none'],magazineRisk:['normal','high'],magazinePropagation:['isolated','chain']};
       for(const [key,values] of Object.entries(choices)){
         if(!values.includes(candidate[key]))return null;
@@ -75,8 +77,8 @@
       return settings;
     }
     function readPublicSettings(){
-      const candidate={encounterMode:encounterInput.value,rangeKm:encounterInput.value==='maximum'?36:Number(rangeInput.value),rangePolicy:rangePolicyInput.value,visibility:visibilityInput.value,accuracyScale:Number(accuracyInput.value),maneuverMode:maneuverInput.value,repairPolicy:repairInput.value,magazineRisk:magazineRiskInput.value,magazinePropagation:propagationInput.value,yamatoAmmo:yamatoAmmoInput.value,iowaAmmo:iowaAmmoInput.value};
-      return validatePublicSettings(candidate)||validatePublicSettings(config)||{encounterMode:'maximum',rangeKm:36,rangePolicy:'hold',visibility:'clear',accuracyScale:1,maneuverMode:'evasive',repairPolicy:'balanced',magazineRisk:'normal',magazinePropagation:'isolated',yamatoAmmo:'ap',iowaAmmo:'ap'};
+      const candidate={shieldMode:shieldInput.value,encounterMode:encounterInput.value,rangeKm:encounterInput.value==='maximum'?36:Number(rangeInput.value),rangePolicy:rangePolicyInput.value,visibility:visibilityInput.value,accuracyScale:Number(accuracyInput.value),maneuverMode:maneuverInput.value,repairPolicy:repairInput.value,magazineRisk:magazineRiskInput.value,magazinePropagation:propagationInput.value,yamatoAmmo:yamatoAmmoInput.value,iowaAmmo:iowaAmmoInput.value};
+      return validatePublicSettings(candidate)||validatePublicSettings(config)||{shieldMode:'none',encounterMode:'maximum',rangeKm:36,rangePolicy:'hold',visibility:'clear',accuracyScale:1,maneuverMode:'evasive',repairPolicy:'balanced',magazineRisk:'normal',magazinePropagation:'isolated',yamatoAmmo:'ap',iowaAmmo:'ap'};
     }
     function publicSettingsChanged(){
       const pending=readPublicSettings(),applied=validatePublicSettings(config);
@@ -90,6 +92,7 @@
       const commandsBusy=doctrineBusy||battleBusy,conditionsDisabled=!!blastPreview||commandsBusy;
       publicSettingsPanel.inert=commandsBusy;
       for(const input of publicConditionInputs)input.disabled=conditionsDisabled;
+      publicControlText(publicSummaryFields.shieldMode,'전투 모드 · '+publicConditionLabels.shieldMode[applied.shieldMode]);
       publicControlText(publicSummaryFields.rangeKm,applied.encounterMode==='maximum'?(applied.rangeKm===36?'장거리 맞포격 · 36 km':'최대 사거리 조우 · 42 km'):'시작 거리 · '+applied.rangeKm+' km');
       const targetRange=Number(duel.initialConfig.targetRangeKm);
       publicControlText(publicSummaryFields.rangePolicy,config.maneuverRevision==='range-control-v18'?publicConditionLabels.rangePolicy[applied.rangePolicy]+(Number.isFinite(targetRange)&&targetRange>0?' 목표 · '+targetRange.toFixed(1)+' km':''):'항로 · 기존 항로');
@@ -111,6 +114,7 @@
     function restorePublicDraft(draft){
       const settings=validatePublicSettings(draft);
       if(!settings){refreshPublicControls();return false;}
+      shieldInput.value=settings.shieldMode;
       encounterInput.value=settings.encounterMode;
       rangeInput.value=String(settings.encounterMode==='maximum'?18:settings.rangeKm);
       rangePolicyInput.value=settings.rangePolicy;

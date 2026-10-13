@@ -5,6 +5,7 @@
     <label class="form-label" data-range-field hidden>시작 거리<select class="form-select" data-range><option value="12">12 km</option><option value="18" selected>18 km</option><option value="24">24 km</option></select></label>
     <label class="form-label" data-ammo-field>야마토 탄종<select class="form-select" data-yamato-ammo data-tooltip="철갑탄은 내부 관통, 고폭탄은 착탄 폭발·파편·화재에 유리 · 새 교전부터 적용"><option value="ap">철갑탄 · AP</option><option value="he">고폭탄 · HE</option></select></label>
     <label class="form-label" data-ammo-field>아이오와 탄종<select class="form-select" data-iowa-ammo data-tooltip="철갑탄은 내부 관통, 고폭탄은 착탄 폭발·파편·화재에 유리 · 새 교전부터 적용"><option value="ap">철갑탄 · AP</option><option value="he">고폭탄 · HE</option></select></label>
+    <label class="form-label">전투 모드<select class="form-select" data-shield data-tooltip="새 교전부터 적용"><option value="none">일반 함포전</option><option value="energy-shell">SF 방어 실드</option></select></label>
     <label class="form-label">시정<select class="form-select" data-visibility><option value="clear">맑음</option><option value="haze">박무</option><option value="night">야간</option></select></label>
     <label class="form-label">기동<select class="form-select" data-maneuver data-tooltip="새 교전부터 적용"><option value="evasive" selected>지그재그 기동</option><option value="steady">안정 항해</option></select></label>
     <label class="form-label" data-range-policy-field>거리 운용<select class="form-select" data-range-policy data-tooltip="거리를 유지하거나 의도적으로 접근합니다 · 새 교전부터 적용"><option value="hold" selected>교전 거리 유지</option><option value="close">접근하며 교전 · 6 km 목표</option></select></label>
@@ -36,6 +37,7 @@
     <label class="form-check"><input class="form-check-input" type="checkbox" data-cutaway><span class="form-check-label">피해 구획</span></label>
     <label class="form-check"><input class="form-check-input" type="checkbox" data-trajectories><span class="form-check-label">탄도·조준 보기</span></label>
     <button class="btn" type="button" data-return hidden>원래 화면으로</button>
+    <button class="btn" type="button" data-shield-replay hidden>실드 붕괴 슬로모션</button>
     <button class="btn" type="button" data-blast-preview data-tooltip="선택한 함선·탄약고의 유폭 연출을 재생합니다">유폭 연출 보기</button>
   </div>
   <div class="viz-row text-small" data-trajectory-legend hidden aria-label="탄도 표시 범례">
@@ -49,6 +51,7 @@
     <span class="viz-badge duel-scale" data-scale>함선 확대 표시</span>
   </div>
   <div class="viz-row text-small tabular-nums" aria-label="교전 거리"><span data-current-range>함간 거리 42.0 km</span><span data-closing-speed>접근 중</span><span data-encounter-phase>최대 사거리 조우</span></div>
+  <div class="duel-shield-summary" data-shield-summary hidden></div>
   <div class="duel-timeline"><label class="form-label" for="duel-time"><span class="viz-row"><output class="tabular-nums" data-time-value>00:00</output><span data-result aria-live="polite">교전 대기</span></span></label><input class="form-range" id="duel-time" data-time type="range" min="0" max="720" step="0.1" value="0" disabled></div>
   <div class="viz-grid duel-status" aria-label="함선 피해 상태">
     <div class="card" data-status="yamato"><div class="viz-row"><span>야마토</span><span class="text-small" data-condition>전투 가능</span></div><div class="viz-row tabular-nums"><span data-speed-value>27.0 kn</span><span data-guns-value>주포 9 / 9문</span><span data-hit-value>명중 0 / 0발</span></div><div class="viz-row text-small"><span data-engine-value>기관 정상</span><span data-control-value>사격통제 정상</span><span data-integrity-value data-tooltip="피탄·화재로 감소하는 구조 내구도 · 5.5% 미만이면 현재 모델의 선체 파괴 판정">선체 내구도 100%</span><span data-flood-value>침수 0%</span><span data-fire-value>화재 없음</span></div><div class="viz-row text-small" data-turrets>1번 정상 · 2번 정상 · 3번 정상</div></div>
@@ -2027,6 +2030,132 @@ function createDuelBallistics(T,models,ocean){
 }
 if(typeof module!=='undefined'&&module.exports)module.exports={createDuelBallistics,sampleDuelBallisticPath,directionDuelBallisticPath,velocityDuelBallisticPath,velocityDuelBallisticPathSI,solveDuelLinearDrag,getDuelBallisticProfile};
 
+// Fictional energy shields. Array-only deterministic collision/energy maths;
+// rendering and historical armour/damage systems remain separate.
+function createDuelShields({samplePath, velocitySI, resolvePose} = {}) {
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const copy = value => JSON.parse(JSON.stringify(value));
+  const masses = {yamato: {ap: 1460, he: 1360}, iowa: {ap: 1225, he: 862}};
+  function rotate(v, q, inverse = false) {
+    const sign = inverse ? -1 : 1, x = q[0] * sign, y = q[1] * sign, z = q[2] * sign, w = q[3];
+    const tx = 2 * (y * v[2] - z * v[1]), ty = 2 * (z * v[0] - x * v[2]), tz = 2 * (x * v[1] - y * v[0]);
+    return [v[0] + w * tx + y * tz - z * ty, v[1] + w * ty + z * tx - x * tz, v[2] + w * tz + x * ty - y * tx];
+  }
+  function normalize(v) {const n = Math.hypot(...v); return n > 0 ? v.map(x => x / n) : [0, 1, 0];}
+  function state(capacityMJ = 900) {
+    const capacity = Number.isFinite(capacityMJ) && capacityMJ > 0 ? capacityMJ : 900;
+    return {mode: 'energy-shell', capacityMJ: capacity, maxCapacityMJ: capacity, active: true, broken: false, radii: [72, 30, 27], localCenter: [0, 8, 0],
+      rechargeRateMJps: 0, rechargeDelaySeconds: 10, lastHitTime: null, lastBreakTime: null, interceptions: 0, absorbedTotalMJ: 0, status: '방호 활성'};
+  }
+  function frame(ship, time, context = {}) {
+    const pose = typeof resolvePose === 'function' ? resolvePose(ship, time, context) : null;
+    const position = (pose?.renderPosition || ship.renderPosition || ship.position).slice();
+    const quaternion = (pose?.renderQuaternion || ship.renderQuaternion || [0, Math.sin(ship.heading / 2), 0, Math.cos(ship.heading / 2)]).slice();
+    const localCenter = ship.shield?.localCenter || [0, 8, 0], offset = rotate(localCenter, quaternion);
+    return {center: position.map((v, i) => v + offset[i]), radii: (ship.shield?.radii || [72, 30, 27]).slice(), quaternion, heading: ship.heading,
+      pose: {position: ship.position.slice(), heading: ship.heading, renderPosition: position, renderQuaternion: quaternion}};
+  }
+  function interpolateShip(a, b, time, t0, t1) {
+    const u = clamp((time - t0) / Math.max(1e-12, t1 - t0), 0, 1);
+    const out = {id: a.id, position: a.position.map((v, i) => v + (b.position[i] - v) * u), heading: a.heading + (b.heading - a.heading) * u,
+      sunk: a.sunk, sinking: a.sinking, structuralFailure: a.structuralFailure, shield: a.shield};
+    for (const key of ['yawRate', 'speedKnots', 'listDeg', 'flooding']) out[key] = (a[key] || 0) + ((b[key] || 0) - (a[key] || 0)) * u;
+    return out;
+  }
+  const extremaCache = new WeakMap();
+  function pathBox(path, lo, hi) {
+    const a = samplePath(path, lo), b = samplePath(path, hi), min = a.map((v, i) => Math.min(v, b[i])), max = a.map((v, i) => Math.max(v, b[i]));
+    if (path.version !== 2 || !Array.isArray(path.initialVelocitySI) || !Array.isArray(path.accelerationSI)) return null;
+    let extrema = extremaCache.get(path);
+    if (!extrema) {
+      extrema = [];
+      for (let axis = 0; axis < 3; axis++) {
+        const v = path.initialVelocitySI[axis], a = path.accelerationSI[axis], k = path.dragPerSecond; let age;
+        if (Math.abs(k) < 1e-12) {if (a !== 0) age = -v / a;}
+        else {const decay = -a / (k * v - a); if (decay > 0 && decay <= 1) age = -Math.log(decay) / k;}
+        if (Number.isFinite(age) && age >= 0) extrema.push({axis, time: path.launchTime + age});
+      }
+      extremaCache.set(path, extrema);
+    }
+    for (const e of extrema) if (e.time > lo && e.time < hi) {const v = samplePath(path, e.time)[e.axis]; min[e.axis] = Math.min(min[e.axis], v); max[e.axis] = Math.max(max[e.axis], v);}
+    return {min, max};
+  }
+  function sweep(shot, t0, t1, state0, state1, context = {}) {
+    const a = state0.ships[shot.target], b = state1.ships[shot.target], shield = a?.shield;
+    if (!shield?.active || shield.capacityMJ <= 0 || a.sunk || !(t1 > t0)) return null;
+    const path = shot.ballisticPath, lo = Math.max(t0, path.launchTime), hi = Math.min(t1, path.waterTime);
+    if (!(hi > lo)) return null;
+    // A rotation-independent containing sphere covers the entire ellipsoid,
+    // its local centre offset, and bounded sea/impact offsets. V2 path bounds
+    // include every analytic velocity extremum rather than a straight chord.
+    const box = pathBox(path, lo, hi), radius = Math.max(...shield.radii) + Math.hypot(...shield.localCenter) + 6;
+    if (box && [0, 1, 2].some(i => box.max[i] < Math.min(a.position[i], b.position[i]) - radius || box.min[i] > Math.max(a.position[i], b.position[i]) + radius)) return null;
+    function evaluate(time) {
+      const raw = interpolateShip(a, b, time, state0.time, state1.time), f = frame(raw, time, context), point = samplePath(path, time);
+      const local = rotate(point.map((v, i) => v - f.center[i]), f.quaternion, true);
+      return {value: local.reduce((sum, v, i) => sum + v * v / (f.radii[i] * f.radii[i]), -1), local, point, frame: f};
+    }
+    function contact(time) {
+      const e = evaluate(time), normalLocal = normalize(e.local.map((v, i) => v / (e.frame.radii[i] * e.frame.radii[i]))), normalWorld = rotate(normalLocal, e.frame.quaternion);
+      return {kind: 'shield', time, pointWorld: e.point, pointLocal: rotate(e.point.map((v, i) => v - e.frame.pose.renderPosition[i]), e.frame.quaternion, true),
+        normalWorld, normalLocal, pose: e.frame.pose, face: null, zoneHint: null, shieldFrame: {center: e.frame.center, radii: e.frame.radii, quaternion: e.frame.quaternion, heading: e.frame.heading}};
+    }
+    const pieces = Math.max(1, Math.ceil((hi - lo) / .025));
+    let start = lo, before = evaluate(start);
+    // Another round may have resolved at this exact boundary time first.
+    // Retire each remaining inward round independently without skipping it
+    // merely because the common motion clock already reached the surface.
+    // A round born inside an ellipsoid is not a new incoming boundary entry.
+    // This also lets a friendly tube emerge through its own shield harmlessly.
+    for (let i = 1; i <= pieces; i++) {
+      const end = lo + (hi - lo) * i / pieces, after = evaluate(end);
+      if (Math.abs(before.value) <= 1e-10 && evaluate(Math.min(end, start + 1e-6)).value < before.value - 1e-12) return contact(start);
+      if (before.value > 0) {
+        let insideTime = end, minimum = after;
+        if (after.value > 0) {
+          // Closest approach can lie between two outside samples. Minimise
+          // the actual curved path/moving-pose equation, then bracket entry.
+          let l = start, r = end, x = r - (r - l) * .6180339887498949, y = l + (r - l) * .6180339887498949;
+          let ex = evaluate(x), ey = evaluate(y);
+          for (let j = 0; j < 24; j++) {
+            if (ex.value < ey.value) {r = y; y = x; ey = ex; x = r - (r - l) * .6180339887498949; ex = evaluate(x);}
+            else {l = x; x = y; ex = ey; y = l + (r - l) * .6180339887498949; ey = evaluate(y);}
+          }
+          insideTime = ex.value < ey.value ? x : y; minimum = ex.value < ey.value ? ex : ey;
+        }
+        // Exact tangency has no inward entry. The signed margin rejects
+        // floating-point noise without turning a nearby outside pass into a hit.
+        if (minimum.value < -1e-12) {
+          let l = start, r = insideTime;
+          for (let j = 0; j < 42; j++) {const mid = (l + r) / 2; if (evaluate(mid).value > 0) l = mid; else r = mid;}
+          const time = (l + r) / 2;
+          if (time > t0 + 1e-10) return contact(time);
+        }
+      }
+      if (Math.abs(after.value) <= 1e-10) {
+        // A first entry may be exactly the interval endpoint. A backward
+        // second-order derivative distinguishes inward entry from tangency
+        // without looking beyond the supplied causal motion interval.
+        const h = Math.min(1e-5, (end - start) / 3), f1 = evaluate(end - h).value, f2 = evaluate(end - 2 * h).value;
+        if ((3 * after.value - 4 * f1 + f2) / (2 * h) < -1e-7) return contact(end);
+      }
+      start = end; before = after;
+    }
+    return null;
+  }
+  function intercept(shield, contact, shot, time = contact.time) {
+    const v = velocitySI(shot.ballisticPath, time), speedMps = Math.hypot(...v), massKg = masses[shot.ship || shot.source]?.[shot.ammoType === 'he' ? 'he' : 'ap'] || 1225;
+    const energyMJ = .5 * massKg * speedMps * speedMps / 1e6, capacityBeforeMJ = Math.max(0, shield.capacityMJ), absorbedMJ = Math.min(capacityBeforeMJ, energyMJ), capacityAfterMJ = Math.max(0, capacityBeforeMJ - absorbedMJ);
+    const broken = capacityAfterMJ <= 1e-9, next = {...copy(shield), capacityMJ: broken ? 0 : capacityAfterMJ, active: !broken, broken,
+      lastHitTime: time, lastBreakTime: broken ? time : shield.lastBreakTime, interceptions: shield.interceptions + 1, absorbedTotalMJ: shield.absorbedTotalMJ + absorbedMJ, status: broken ? '실드 붕괴' : '방호 활성'};
+    return {state: next, event: {...copy(contact.shieldFrame), normal: contact.normalWorld.slice(), energyMJ, absorbedMJ, remainingMJ: energyMJ - absorbedMJ,
+      capacityBeforeMJ, capacityAfterMJ: next.capacityMJ, broken, massKg, speedMps}};
+  }
+  function advance(shield) {return copy(shield);} // No spontaneous regeneration in this experiment.
+  return {state, frame, sweep, intercept, advance, masses: copy(masses)};
+}
+if (typeof module !== 'undefined' && module.exports) module.exports = {createDuelShields};
+
 // A deterministic naval game model. Damage, dispersion and protection scores
 // are design abstractions, not experimentally calibrated historical hit rates.
 function createNavalDuel(options = {}) {
@@ -2046,6 +2175,10 @@ function createNavalDuel(options = {}) {
   const rangeControl = fragileManeuver && options.maneuverRevision === 'range-control-v18';
   const mutualFire = rangeControl && options.engagementModel === 'mutual-fire';
   const fixedCoordinates = mutualFire && options.coordinateModel === 'fixed-scale';
+  const energyShields = fixedCoordinates && options.shieldMode === 'energy-shell';
+  const shieldPhysics = energyShields ? createDuelShields({samplePath: (path, time) => ballistics.sample(path, time).toArray(), velocitySI: (path, time) => {
+    const value = ballistics.velocitySI(path, time); return Array.isArray(value) ? value.slice() : value.toArray();
+  }, resolvePose: options.shieldPoseResolver}) : null;
   const tacticalModes = ['repair', 'balanced', 'attack'];
   const tacticalProfiles = {repair: {reloadMultiplier: 1.28, damageControlMultiplier: 1.25, incomingCriticalMultiplier: .85, outgoingCriticalMultiplier: 1, dcShare: .8125}, balanced: {reloadMultiplier: 1, damageControlMultiplier: 1, incomingCriticalMultiplier: 1, outgoingCriticalMultiplier: 1, dcShare: .65}, attack: {reloadMultiplier: .80, damageControlMultiplier: .70, incomingCriticalMultiplier: 1.8, outgoingCriticalMultiplier: 1.5, dcShare: .455}};
   const crewVitalDamage = (options.damageModel === 'crew-vital' || energeticDamage) && rangeAwareGunnery;
@@ -2064,7 +2197,7 @@ function createNavalDuel(options = {}) {
     accuracyScale: clamp(Number.isFinite(Number(options.accuracyScale)) ? Number(options.accuracyScale) : 1, .65, 1.5),
     maneuverMode: options.maneuverMode === 'steady' ? 'steady' : 'evasive',
     encounterMode: options.encounterMode === 'set-range' ? 'set-range' : 'maximum',
-    modelRevision: fixedCoordinates ? 'naval-duel-20' : mutualFire ? 'naval-duel-19' : rangeControl ? 'naval-duel-18' : fragileManeuver ? 'naval-duel-17' : independentGunnery ? 'naval-duel-16' : salvoPressure ? 'naval-duel-15' : siDragKinematics ? 'naval-duel-14' : energeticDamage ? 'naval-duel-13' : crewVitalDamage ? 'naval-duel-12' : vitalPathDamage ? 'naval-duel-11' : rangeAwareGunnery ? 'naval-duel-10' : ballistics ? 'naval-duel-9' : legacyDamage ? 'naval-duel-4' : chainPropagation ? 'naval-duel-8' : criticalDamage ? 'naval-duel-7' : cascadeDamage ? 'naval-duel-6' : 'naval-duel-5',
+    modelRevision: energyShields ? 'naval-duel-21' : fixedCoordinates ? 'naval-duel-20' : mutualFire ? 'naval-duel-19' : rangeControl ? 'naval-duel-18' : fragileManeuver ? 'naval-duel-17' : independentGunnery ? 'naval-duel-16' : salvoPressure ? 'naval-duel-15' : siDragKinematics ? 'naval-duel-14' : energeticDamage ? 'naval-duel-13' : crewVitalDamage ? 'naval-duel-12' : vitalPathDamage ? 'naval-duel-11' : rangeAwareGunnery ? 'naval-duel-10' : ballistics ? 'naval-duel-9' : legacyDamage ? 'naval-duel-4' : chainPropagation ? 'naval-duel-8' : criticalDamage ? 'naval-duel-7' : cascadeDamage ? 'naval-duel-6' : 'naval-duel-5',
     damageModel: energeticDamage ? 'energetic-crew' : crewVitalDamage ? 'crew-vital' : vitalPathDamage ? 'vital-path' : legacyDamage ? 'legacy' : criticalDamage ? 'critical' : cascadeDamage ? 'cascade' : 'equipment', repairPolicy,
     abstraction: 'game',
     simulationStep: 1
@@ -2078,6 +2211,7 @@ function createNavalDuel(options = {}) {
   if (rangeControl) Object.assign(initialConfig, {maneuverRevision: 'range-control-v18', rangePolicy: options.rangePolicy === 'close' ? 'close' : 'hold'});
   if (mutualFire) initialConfig.engagementModel = 'mutual-fire';
   if (fixedCoordinates) initialConfig.coordinateModel = 'fixed-scale';
+  if (energyShields) initialConfig.shieldMode = 'energy-shell';
   if (salvoPressure) Object.assign(initialConfig, {tacticalModel: 'salvo-pressure', yamatoDoctrine: tacticalModes.includes(options.yamatoDoctrine) ? options.yamatoDoctrine : 'balanced', iowaDoctrine: tacticalModes.includes(options.iowaDoctrine) ? options.iowaDoctrine : 'balanced',
     tacticalOrders: (Array.isArray(options.tacticalOrders) ? options.tacticalOrders : []).map((order, index) => ({time: Number(order?.time), ship: order?.ship, mode: order?.mode, index})).filter(order => Number.isFinite(order.time) && order.time >= 0 && ['yamato', 'iowa'].includes(order.ship) && tacticalModes.includes(order.mode)).sort((a, b) => a.time - b.time || a.index - b.index).map(({time, ship, mode}) => ({time, ship, mode}))});
   if (energeticDamage) Object.assign(initialConfig, {yamatoAmmo: options.yamatoAmmo === 'he' ? 'he' : 'ap', iowaAmmo: options.iowaAmmo === 'he' ? 'he' : 'ap'});
@@ -2201,6 +2335,7 @@ function createNavalDuel(options = {}) {
       _steadyGoal: initialHeading, _steadyTurning: false, _incomingTracks: [], _inRange: false, _initialHeading: initialHeading,
       _failureCauses: {}, _lastImpact: null, _lastDetonation: null
     };
+    if (energyShields) ships[id].shield = shieldPhysics.state();
     if (!legacyDamage) {
       ships[id]._equipmentCooldown = specs[id].turrets.map(() => Object.fromEntries(equipmentKeys.map(key => [key, 0])));
       ships[id]._equipmentRepairDuration = specs[id].turrets.map(() => ({}));
@@ -2682,6 +2817,7 @@ function createNavalDuel(options = {}) {
         for (const key of ['id', 'ammoType', 'position', 'heading', 'velocity', 'yawRate', 'speedKnots', 'flooding', 'listDeg', 'sunk', 'sinking', 'structuralFailure']) out[key] = typeof ship[key] === 'object' ? clone(ship[key]) : ship[key];
         if (independentGunnery) Object.assign(out, {fireControlModel: 'per-gun', gunnery: clone(ship.gunnery)});
         out.turrets = ship.turrets.map(t => ({disabled: t.disabled, barrels: t.barrels.slice()}));
+        if (energyShields) out.shield = clone(ship.shield);
         copied[id] = out;
       }
       const rangeKm = Math.hypot(copied.yamato.position[0] - copied.iowa.position[0], copied.yamato.position[2] - copied.iowa.position[2]) / displayUnitsPerMeter / 1000;
@@ -2742,7 +2878,15 @@ function createNavalDuel(options = {}) {
         }
       }
     }
-    applyImpact(shot);
+    if (energyShields && contact.kind === 'shield') {
+      const target = ships[shot.target], intercepted = shieldPhysics.intercept(target.shield, contact, shot);
+      target.shield = intercepted.state;
+      shot.type = 'shield-impact'; shot.outcome = intercepted.event.broken ? 'shield-break' : 'shield-absorbed'; shot.penetrated = false;
+      shot.point = contact.pointLocal.slice(); shot.impactWorld = contact.pointWorld.slice(); shot.worldImpact = shot.impactWorld.slice(); shot.impactPose = clone(contact.pose);
+      shot.shield = intercepted.event;
+      shot.label = `${target.name} · ${shot.shield.broken ? '실드 붕괴 · 포탄 공중 폭발' : '실드 차단 · 포탄 공중 폭발'}`;
+      events.push(shot);
+    } else applyImpact(shot);
     observeTacticalArrival(shot);
     if (fragileManeuver) {
       const target = ships[shot.target];
@@ -2805,6 +2949,7 @@ function createNavalDuel(options = {}) {
         const end = Math.min(time, start + .25, waterTime, chainPropagation && pendingChains.length ? pendingChains[0].time : Infinity, independentGunnery ? nextGunWakeTime() : Infinity);
         const orderTime = salvoPressure && tacticalOrderIndex < initialConfig.tacticalOrders.length ? initialConfig.tacticalOrders[tacticalOrderIndex].time : Infinity;
         const candidates = airborne.filter(shot => {
+          if (energyShields && ships[shot.target].shield.active && !ships[shot.target].sunk) return end >= shot.launchTime;
           const probe = typeof ballistics.firstProbeTime === 'function' ? ballistics.firstProbeTime(shot.ballisticPath) : shot.launchTime;
           return end >= probe - 1e-9 && end >= shot.launchTime;
         });
@@ -2812,7 +2957,9 @@ function createNavalDuel(options = {}) {
         if (candidates.length) {
           const state0 = ballisticState(start), state1 = previewMotion(end), context = ballisticContext();
           for (const shot of candidates) {
-            const contact = ballistics.sweep(shot, start, end, state0, state1, context);
+            const hullContact = ballistics.sweep(shot, start, end, state0, state1, context);
+            const shieldContact = energyShields ? shieldPhysics.sweep(shot, start, end, state0, state1, context) : null;
+            const contact = shieldContact && (!hullContact || shieldContact.time <= hullContact.time) ? shieldContact : hullContact;
             if (!contact || !Number.isFinite(contact.time) || contact.time < start - 1e-7 || contact.time > end + 1e-7) continue;
             if (!first || contact.time < first.contact.time - 1e-9 || Math.abs(contact.time - first.contact.time) <= 1e-9 && shot.shotId.localeCompare(first.shot.shotId) < 0) first = {shot, contact};
           }
@@ -5410,11 +5557,12 @@ function createNavalDuelEffects(T, scene, camera, models, options={}) {
         if(!blast)blast=makeMagazine(e,state,sampleTime,key);
         if(blast)magazineEffect(blast,time);continue;
       }
-      if((e.type!=='impact'&&e.type!=='splash')||!Number.isFinite(e.time)||!e.target)continue;
+      if((e.type!=='impact'&&e.type!=='splash'&&e.type!=='shield-impact')||!Number.isFinite(e.time)||!e.target)continue;
       const launch=Number.isFinite(e.launchTime)?e.launchTime:e.time-(e.flightTime||5);
       if(time<launch||time>e.time+8.5)continue;
       const key=e.shotId||e.id,shot=cache.get(key)||makeShot(e,state,sampleTime);if(!shot)continue;
       muzzleEffect(shot,time);projectile(shot,time);
+      if(e.type==='shield-impact')continue;
       if(e.type==='splash')waterImpact(shot,time);else if(e.ammoType==='he'&&(e.blastTrace||e.heBurst))highExplosiveImpact(shot,time,state,sampleTime);else hullImpact(shot,time);
     }
     const burningZones=persistentDamage(time,events,state,sampleTime);
@@ -5480,6 +5628,276 @@ function createNavalDuelEffects(T, scene, camera, models, options={}) {
   clear();return {update,clear,getBounds,getMagazineBounds,getMagazinePose,getShotPose,getShotPath,getDiagnostics,root};
 }
 
+// SF energy shielding is a game convention. This renderer consumes real swept
+// contacts, and reconstructs every flash, fracture and fragment from event age.
+function createDuelShieldEffects(T,scene,camera,models,options={}) {
+  const root=new T.Group();root.name='SF shield surface and airborne shell bursts';root.visible=false;scene.add(root);
+  const clamp=(v,a=0,b=1)=>Math.max(a,Math.min(b,v)),smooth=v=>{v=clamp(v);return v*v*(3-2*v);};
+  const hash=text=>{let value=2166136261;for(const c of String(text))value=Math.imul(value^c.charCodeAt(0),16777619);return value>>>0;};
+  const random=n=>{const v=Math.sin(n*12.9898+78.233)*43758.5453;return v-Math.floor(v);};
+  const ids=['yamato','iowa'],CAP={flash:96,gas:640,soot:768,sparks:1536,rings:128,plates:1024,crackVertices:12288},LIFE=8.5;
+  const bounds=new T.Box3(),shipBounds={yamato:new T.Box3(),iowa:new T.Box3()},point=new T.Vector3(),normal=new T.Vector3(),axis=new T.Vector3(),tangent=new T.Vector3(),bitangent=new T.Vector3(),temporary=new T.Vector3(),unit=new T.Vector3(),center=new T.Vector3(),up=new T.Vector3(0,1,0),xAxis=new T.Vector3(1,0,0),quaternion=new T.Quaternion();
+  let eventIdentity=null,ordered=[],disposed=false,lastTime=-1,overflow=0,currentTarget=null,report=emptyReport();
+  const latest={yamato:null,iowa:null},latestBreak={yamato:null,iowa:null},domeGeometry=new T.SphereGeometry(1,72,40),domes={},batches=[];
+  const domeVertex=`
+    varying vec3 vUnit;varying vec3 vWorld;varying vec3 vNormal;
+    void main(){vUnit=normalize(position);vec4 world=modelMatrix*vec4(position,1.);vWorld=world.xyz;vNormal=normalize(normalMatrix*normal);gl_Position=projectionMatrix*viewMatrix*world;}
+  `;
+  const domeFragment=`
+    uniform float uTime;uniform float uCharge;uniform float uBreakAge;uniform float uReduced;uniform vec3 uColor;uniform vec4 uImpacts[4];
+    varying vec3 vUnit;varying vec3 vWorld;varying vec3 vNormal;
+    float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
+    vec2 hex(vec2 p){vec2 s=vec2(1.7320508,3.);vec2 a=mod(p,s)-s*.5,b=mod(p-s*.5,s)-s*.5;return dot(a,a)<dot(b,b)?a:b;}
+    void main(){
+      if(vWorld.y<-.45)discard;
+      vec3 n=normalize(vUnit);vec2 surface=vec2(atan(n.z,n.x)*1.5,asin(clamp(n.y,-1.,1.)))*22.;vec2 cell=hex(surface);
+      float edge=max(abs(cell.x)*.8660254+abs(cell.y)*.5,abs(cell.y));float seam=smoothstep(.79,.91,edge);
+      float fresnel=pow(1.-abs(vNormal.z),2.3),pulse=0.,front=0.,fracture=0.;
+      for(int i=0;i<4;i++){
+        float age=uImpacts[i].w;
+        if(age>=0.&&age<2.4){
+          float angle=acos(clamp(dot(n,uImpacts[i].xyz),-1.,1.));
+          float wave=age*(uReduced>.5?.85:1.95),fade=1.-smoothstep(.55,2.3,age);
+          front+=exp(-pow((angle-wave)/(.055+age*.055),2.))*fade;
+          pulse+=exp(-angle*angle/(.025+age*.22))*exp(-age*4.2);
+          float sectors=sin(atan(n.z-uImpacts[i].z,n.x-uImpacts[i].x)*13.+angle*12.);
+          fracture+=pow(1.-abs(sectors),15.)*step(angle,wave+.13)*fade*.44;
+        }
+      }
+      float breakFade=1.,breakBand=0.;
+      if(uBreakAge>=0.){
+        float angle=acos(clamp(dot(n,uImpacts[0].xyz),-1.,1.)),travel=uBreakAge*2.1;
+        breakBand=exp(-pow((angle-travel)/.13,2.))*(1.-smoothstep(.55,1.7,uBreakAge));
+        float holes=hash(floor(surface*1.7))*.33;
+        breakFade=smoothstep(travel-.27+holes,travel+.12+holes,angle)*(1.-smoothstep(1.1,1.9,uBreakAge));
+      }
+      float base=(.012+fresnel*.11+seam*.048)*(.34+.66*uCharge);
+      float alpha=(base+front*.34+pulse*.56+fracture+breakBand*.60)*breakFade;
+      if(alpha<.004)discard;
+      vec3 color=mix(uColor,vec3(.80,.99,1.),clamp(front*.85+pulse+breakBand,0.,1.));
+      gl_FragColor=vec4(color,min(.86,alpha));
+    }
+  `;
+  for(const id of ids){
+    const impacts=[new T.Vector4(1,0,0,-1),new T.Vector4(1,0,0,-1),new T.Vector4(1,0,0,-1),new T.Vector4(1,0,0,-1)];
+    const material=new T.ShaderMaterial({vertexShader:domeVertex,fragmentShader:domeFragment,uniforms:{uTime:{value:0},uCharge:{value:1},uBreakAge:{value:-1},uReduced:{value:options.reducedMotion?1:0},uColor:{value:new T.Color(id==='yamato'?0x48d5ff:0x66bbff)},uImpacts:{value:impacts}},transparent:true,depthWrite:false,side:T.DoubleSide,blending:T.AdditiveBlending,toneMapped:false});
+    const mesh=new T.Mesh(domeGeometry,material);mesh.name=id+' segmented energy shield';mesh.frustumCulled=false;mesh.visible=false;mesh.renderOrder=1;root.add(mesh);
+    domes[id]={mesh,material,impacts,center:new T.Vector3(),radii:new T.Vector3(72,30,27),heading:0};
+  }
+  const noise=`
+    varying vec2 vUv;varying vec4 vParams;
+    float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
+    float noise(vec2 p){vec2 i=floor(p),f=fract(p),s=f*f*(3.-2.*f);return mix(mix(hash(i),hash(i+vec2(1.,0.)),s.x),mix(hash(i+vec2(0.,1.)),hash(i+vec2(1.,1.)),s.x),s.y);}
+    float fbm(vec2 p){float value=0.,weight=.54;mat2 turn=mat2(.8,-.6,.6,.8);for(int i=0;i<4;i++){value+=noise(p)*weight;p=turn*p*2.07+vec2(13.1,7.7);weight*=.48;}return value;}
+  `;
+  const flashFragment=noise+`
+    void main(){vec2 p=(vUv-.5)*2.,q=p+(vec2(fbm(p*3.+vParams.z),fbm(p*3.+vParams.z+13.7))-.5)*.18;
+      float f=1.-length(q),core=smoothstep(.1,.7,f),a=smoothstep(-.07,.24,f)*vParams.y;
+      if(a<.005)discard;gl_FragColor=vec4(mix(vec3(1.,.59,.20),vec3(1.,.998,.94),core),a);}
+  `;
+  const gasFragment=noise+`
+    void main(){vec2 p=(vUv-.5)*2.,flow=vec2(vParams.z*.17-vParams.x*.9,vParams.z*.31+vParams.x*.32);
+      vec2 q=p+(vec2(fbm(p*2.8+flow),fbm(p*2.8+flow+vec2(9.1,17.3)))-.5)*.58;
+      float broad=fbm(q*4.8+flow),fine=fbm(q*17.+flow*1.3),r=length(q),field=1.-r+(broad-.5)*.46;
+      float depth=sqrt(max(0.,1.-min(1.,r*r))),lit=clamp(.33+depth*.3+q.y*.1+(broad-.5)*.60+(fine-.5)*.15,0.,1.);
+      vec3 soot=mix(vec3(.022,.022,.020),vec3(.33,.29,.23),lit),gas=mix(vec3(.66,.085,.009),vec3(1.,.46,.045),smoothstep(.05,.53,field+depth*.3));
+      gas=mix(gas,vec3(1.,.94,.65),smoothstep(.48,.91,field+depth*.3));
+      float hot=clamp(vParams.w*(.64+.36*lit)*smoothstep(-.08,.25,field),0.,1.),a=smoothstep(-.065,.22,field)*(.85+.15*fine)*vParams.y;
+      if(a<.005)discard;gl_FragColor=vec4(mix(soot,gas,hot),a);}
+  `;
+  const sootFragment=noise+`
+    void main(){vec2 p=(vUv-.5)*2.,flow=vec2(vParams.z*.21+vParams.x*.14,vParams.z*.37-vParams.x*.25);
+      vec2 q=p+(vec2(fbm(p*2.3+flow),fbm(p*2.3+flow+vec2(9.7,17.1)))-.5)*.67;
+      float broad=fbm(q*4.9+flow),fine=fbm(q*14.+flow*1.7),field=1.-length(q)+(broad-.5)*.53;
+      float lit=clamp(.30+q.y*.13+(broad-.5)*.70+(fine-.5)*.16,0.,1.);
+      vec3 color=mix(vec3(.012,.015,.018),vec3(.28,.29,.28),lit);color=mix(color,vec3(.76,.16,.018),vParams.w*smoothstep(.60,.83,fine)*max(0.,field));
+      float a=smoothstep(-.12,.3,field)*(.78+.22*fine)*vParams.y;if(a<.005)discard;gl_FragColor=vec4(color,a);}
+  `;
+  const sparkFragment=noise+`
+    void main(){float side=1.-smoothstep(.035,.5,abs(vUv.y-.5)),along=smoothstep(0.,.07,vUv.x)*(1.-smoothstep(.65,1.,vUv.x));
+      float a=side*along*vParams.y;if(a<.005)discard;vec3 color=mix(vec3(1.,.25,.015),vec3(1.,.96,.69),vParams.w);gl_FragColor=vec4(color,a);}
+  `;
+  const ringFragment=noise+`
+    void main(){vec2 p=(vUv-.5)*2.;float r=length(p)+(fbm(p*8.+vParams.z)-.5)*.035;
+      float front=exp(-pow((r-.85)/.020,2.)),mist=(1.-smoothstep(.73,.88,r))*.045,a=(front+mist)*vParams.y;
+      if(a<.004)discard;gl_FragColor=vec4(mix(vec3(.79,.89,.94),vec3(.87,.98,1.),vParams.w),a);}
+  `;
+  const plateFragment=noise+`
+    void main(){vec2 p=(vUv-.5)*2.;float edge=max(abs(p.x)*.8660254+abs(p.y)*.5,abs(p.y));
+      float border=smoothstep(.62,.86,edge),a=(.10+border*.77)*vParams.y;if(a<.004)discard;
+      gl_FragColor=vec4(mix(vec3(.035,.24,.36),vec3(.61,.98,1.),border),a);}
+  `;
+  const vertex=`
+    attribute vec3 aCenter;attribute vec2 aSize;attribute vec4 aParams;attribute vec3 aDirection;
+    uniform int uOrientation;varying vec2 vUv;varying vec4 vParams;
+    void main(){vUv=uv;vParams=aParams;
+      if(uOrientation==2){vec3 n=normalize(aDirection),t=normalize(cross(abs(n.y)>.96?vec3(1.,0.,0.):vec3(0.,1.,0.),n)),b=cross(n,t);
+        float angle=aParams.z+aParams.x*2.7;vec2 p=mat2(cos(angle),sin(angle),-sin(angle),cos(angle))*(position.xy*aSize);
+        gl_Position=projectionMatrix*viewMatrix*vec4(aCenter+t*p.x+b*p.y,1.);return;}
+      vec4 c=modelViewMatrix*vec4(aCenter,1.);float angle=sin(aParams.z)*.24+aParams.x*.035;vec2 size=aSize;
+      if(uOrientation==1){vec3 axis=mat3(viewMatrix)*aDirection;angle=atan(axis.y,axis.x);size.x=mix(aSize.y,aSize.x,clamp(length(axis.xy),0.,1.));}
+      c.xy+=mat2(cos(angle),sin(angle),-sin(angle),cos(angle))*(position.xy*size);gl_Position=projectionMatrix*c;}
+  `;
+  const quad=new T.PlaneGeometry(1,1),plateGeometry=new T.BufferGeometry(),plateVertices=[],plateUvs=[],plateIndices=[];
+  plateVertices.push(0,0,0);plateUvs.push(.5,.5);
+  for(let i=0;i<6;i++){const a=i*Math.PI/3;plateVertices.push(Math.cos(a)*.5,Math.sin(a)*.5,0);plateUvs.push(Math.cos(a)*.5+.5,Math.sin(a)*.5+.5);plateIndices.push(0,i+1,(i+1)%6+1);}
+  plateGeometry.setAttribute('position',new T.Float32BufferAttribute(plateVertices,3));plateGeometry.setAttribute('uv',new T.Float32BufferAttribute(plateUvs,2));plateGeometry.setIndex(plateIndices);
+  function batch(name,capacity,fragment,orientation=0,additive=false,shape=quad){
+    const geometry=new T.InstancedBufferGeometry();geometry.index=shape.index;geometry.attributes.position=shape.attributes.position;geometry.attributes.uv=shape.attributes.uv;
+    for(const [key,width] of [['aCenter',3],['aSize',2],['aParams',4],['aDirection',3]])geometry.setAttribute(key,new T.InstancedBufferAttribute(new Float32Array(capacity*width),width).setUsage(T.DynamicDrawUsage));
+    geometry.instanceCount=0;const material=new T.ShaderMaterial({vertexShader:vertex,fragmentShader:fragment,uniforms:{uOrientation:{value:orientation}},transparent:true,depthWrite:false,depthTest:true,side:T.DoubleSide,blending:additive?T.AdditiveBlending:T.NormalBlending,toneMapped:false});
+    const mesh=new T.Mesh(geometry,material);mesh.name=name;mesh.frustumCulled=false;mesh.visible=false;mesh.renderOrder=additive?4:3;root.add(mesh);
+    const entry={name,capacity,geometry,material,mesh,count:0};batches.push(entry);return entry;
+  }
+  const flash=batch('airburst white pressure flash',CAP.flash,flashFragment,0,true),gas=batch('airburst expanding propellant lobes',CAP.gas,gasFragment),soot=batch('airburst black smoke billows',CAP.soot,sootFragment),sparks=batch('airburst radial hot fragments',CAP.sparks,sparkFragment,1,true),rings=batch('airburst pressure waves',CAP.rings,ringFragment,2,true),plates=batch('shattered cyan shield hex plates',CAP.plates,plateFragment,2,true,plateGeometry);
+  const crackGeometry=new T.BufferGeometry(),crackPositions=new Float32Array(CAP.crackVertices*3),crackColors=new Float32Array(CAP.crackVertices*3);
+  crackGeometry.setAttribute('position',new T.BufferAttribute(crackPositions,3).setUsage(T.DynamicDrawUsage));crackGeometry.setAttribute('color',new T.BufferAttribute(crackColors,3).setUsage(T.DynamicDrawUsage));crackGeometry.setDrawRange(0,0);
+  // Fresh gas obscures the older shield web at the contact, while its outer
+  // fractures remain visible. A white core always draws above the warm lobes.
+  gas.mesh.renderOrder=6;soot.mesh.renderOrder=5;flash.mesh.renderOrder=8;sparks.mesh.renderOrder=7;plates.mesh.renderOrder=4;rings.mesh.renderOrder=3;
+  const crackMaterial=new T.LineBasicMaterial({transparent:true,opacity:.60,vertexColors:true,blending:T.AdditiveBlending,depthWrite:false,toneMapped:false}),cracks=new T.LineSegments(crackGeometry,crackMaterial);cracks.name='branching shield fractures';cracks.frustumCulled=false;cracks.visible=false;cracks.renderOrder=4;root.add(cracks);let crackCount=0;
+  function emptyReport(){return {active:false,shields:0,impacts:0,broken:0,flashes:0,gasLobes:0,soot:0,sparks:0,shockwaves:0,shieldPlates:0,crackSegments:0,overflow:0,invalidEvents:0};}
+  function reset(){bounds.makeEmpty();for(const id of ids)shipBounds[id].makeEmpty();currentTarget=null;overflow=0;crackCount=0;for(const entry of batches){entry.count=0;entry.mesh.visible=false;}cracks.visible=false;for(const id of ids){domes[id].mesh.visible=false;latest[id]=null;latestBreak[id]=null;}}
+  function finish(){for(const entry of batches){entry.geometry.instanceCount=entry.count;entry.mesh.visible=entry.count>0;if(entry.count)for(const attribute of Object.values(entry.geometry.attributes))if(attribute.isInstancedBufferAttribute)attribute.needsUpdate=true;}
+    crackGeometry.setDrawRange(0,crackCount);cracks.visible=crackCount>0;if(crackCount){crackGeometry.attributes.position.needsUpdate=true;crackGeometry.attributes.color.needsUpdate=true;}
+  }
+  function includePoint(p,id=currentTarget){bounds.expandByPoint(p);if(shipBounds[id])shipBounds[id].expandByPoint(p);}
+  function put(entry,p,width,height,age,alpha,seed,heat,d=normal){
+    if(alpha<.003||width<=0||height<=0)return;if(entry.count>=entry.capacity){overflow++;return;}
+    const i=entry.count++,a=entry.geometry.attributes;a.aCenter.setXYZ(i,p.x,p.y,p.z);a.aSize.setXY(i,width,height);a.aParams.setXYZW(i,age,clamp(alpha),seed,clamp(heat));a.aDirection.setXYZ(i,d.x,d.y,d.z);
+    // A conservative extent is cheap and never leaves a burst outside framing.
+    const r=Math.max(width,height)*.55;includePoint(temporary.set(p.x-r,p.y-r,p.z-r));includePoint(temporary.set(p.x+r,p.y+r,p.z+r));
+  }
+  function valid3(value){return Array.isArray(value)&&value.length>=3&&Number.isFinite(value[0])&&Number.isFinite(value[1])&&Number.isFinite(value[2]);}
+  function validRadii(value){return valid3(value)&&value[0]>0&&value[1]>0&&value[2]>0;}
+  function valid4(value){return Array.isArray(value)&&value.length>=4&&Number.isFinite(value[0])&&Number.isFinite(value[1])&&Number.isFinite(value[2])&&Number.isFinite(value[3]);}
+  function indexEvents(events){if(eventIdentity===events)return;eventIdentity=events;ordered=events.filter(e=>e.type==='shield-impact'&&Number.isFinite(e.time)&&e.target).slice().sort((a,b)=>a.time-b.time||String(a.shotId||a.id).localeCompare(String(b.shotId||b.id)));}
+  function eventShield(e){return e.shield||e.shieldContact||e.contact?.shield||{};}
+  function worldContact(e){return e.impactWorld||e.worldImpact||e.contact?.pointWorld||e.pointWorld;}
+  function coordinates(local,shape,result){
+    const p=shape.center;result.set(local.x*(shape.radii?.[0]||72),local.y*(shape.radii?.[1]||30),local.z*(shape.radii?.[2]||27));
+    if(valid4(shape.quaternion))result.applyQuaternion(quaternion.fromArray(shape.quaternion));else result.applyAxisAngle(up,shape.heading||0);
+    result.x+=p[0];result.y+=p[1];result.z+=p[2];return result;
+  }
+  function surfaceUnit(e,shape,result){
+    const p=worldContact(e);result.set(p[0]-shape.center[0],p[1]-shape.center[1],p[2]-shape.center[2]);
+    if(valid4(shape.quaternion))result.applyQuaternion(quaternion.fromArray(shape.quaternion).invert());else result.applyAxisAngle(up,-(shape.heading||0));
+    result.x/=shape.radii[0];result.y/=shape.radii[1];result.z/=shape.radii[2];return result.normalize();
+  }
+  function crackLine(a,b,brightness){if(crackCount+2>CAP.crackVertices){overflow++;return;}const j=crackCount*3;crackPositions[j]=a.x;crackPositions[j+1]=a.y;crackPositions[j+2]=a.z;crackPositions[j+3]=b.x;crackPositions[j+4]=b.y;crackPositions[j+5]=b.z;for(let k=0;k<2;k++){const c=j+k*3;crackColors[c]=brightness*.46;crackColors[c+1]=brightness*.95;crackColors[c+2]=brightness;}crackCount+=2;includePoint(a);includePoint(b);}
+  const crackA=new T.Vector3(),crackB=new T.Vector3(),surface=new T.Vector3(),surfaceTangent=new T.Vector3(),surfaceBitangent=new T.Vector3(),fragmentDirection=new T.Vector3(),fragmentPosition=new T.Vector3(),waveDirection=new T.Vector3();
+  function fractures(e,age,shape,seed,broken){
+    if(age<0||age>2.4||!valid3(shape.center)||!validRadii(shape.radii))return;surfaceUnit(e,shape,unit);
+    surfaceTangent.crossVectors(Math.abs(unit.y)>.93?xAxis:up,unit).normalize();surfaceBitangent.crossVectors(unit,surfaceTangent).normalize();
+    const fade=(1-smooth((age-.65)/1.6))*(options.reducedMotion?.50:.73),spread=Math.min(broken?1.5:.70,age*(broken?2.1:1.75));
+    if(spread<=0)return;
+    const branches=broken?12:7;
+    for(let j=0;j<branches;j++){
+      const a=seed+j*2.399963,reach=(.55+random(seed+j*7.13)*.45)*spread;
+      for(let k=0;k<5;k++){
+        const t0=k/5*reach,t1=(k+1)/5*reach,bend=(random(seed+j*41+k*2.81)-.5)*.19;
+        surface.copy(unit).multiplyScalar(Math.cos(t0)).addScaledVector(surfaceTangent,Math.cos(a+bend)*Math.sin(t0)).addScaledVector(surfaceBitangent,Math.sin(a+bend)*Math.sin(t0)).normalize();coordinates(surface,shape,crackA);
+        surface.copy(unit).multiplyScalar(Math.cos(t1)).addScaledVector(surfaceTangent,Math.cos(a-bend*.6)*Math.sin(t1)).addScaledVector(surfaceBitangent,Math.sin(a-bend*.6)*Math.sin(t1)).normalize();coordinates(surface,shape,crackB);
+        crackLine(crackA,crackB,fade*(1-k*.12));
+        if(k===2&&j%2===0){surface.copy(unit).multiplyScalar(Math.cos(t1+.17)).addScaledVector(surfaceTangent,Math.cos(a+.24)*Math.sin(t1+.17)).addScaledVector(surfaceBitangent,Math.sin(a+.24)*Math.sin(t1+.17)).normalize();coordinates(surface,shape,crackA);crackLine(crackB,crackA,fade*.52);}
+      }
+    }
+  }
+  function airburst(e,age){
+    currentTarget=e.target;const shape=eventShield(e),p=worldContact(e);if(!valid3(p)){report.invalidEvents++;return;}
+    point.fromArray(p);normal.fromArray(valid3(shape.normal)?shape.normal:valid3(e.contact?.normalWorld)?e.contact.normalWorld:[0,1,0]).normalize();
+    if(normal.lengthSq()<.5)normal.set(0,1,0);tangent.crossVectors(Math.abs(normal.y)>.96?xAxis:up,normal).normalize();bitangent.crossVectors(normal,tangent).normalize();
+    const seed=hash(e.shotId||e.id||e.target+':'+e.time)*.000013,energy=Math.max(1,Number(shape.energyMJ||shape.kineticEnergyMJ||e.energyMJ)||160),broken=shape.broken===true||e.broken===true;
+    const size=clamp(Math.sqrt(energy/180),.58,1.7),reduced=options.reducedMotion===true,he=e.ammoType==='he';
+    // These bounded multipliers are SF art direction, rather than an inferred
+    // historical explosive mass. Only the failing shield gets the large burst.
+    const burstScale=broken?(he?1.75:1.42):(he?1.08:1),gasSize=size*burstScale,flashLife=broken?.20:.105;
+    report.impacts++;if(broken)report.broken++;
+    const initial=1-smooth(age/(reduced?.18:flashLife));if(age<flashLife)put(flash,point,(4+age*(broken?140:110))*gasSize,(3+age*(broken?130:100))*gasSize,age,initial*(reduced?.54:1),seed,1);
+    const shellDelay=.035,gasAge=age-shellDelay;
+    if(gasAge>=0&&gasAge<2.4){
+      for(let j=0;j<10;j++){
+        const a=seed+j*2.399963,v=4+random(seed+j*13.7)*10,r=(1-Math.exp(-gasAge*2.6))*v*gasSize;
+        fragmentPosition.copy(point).addScaledVector(normal,(1+gasAge*5)*gasSize).addScaledVector(tangent,Math.cos(a)*r).addScaledVector(bitangent,Math.sin(a)*r*.72);fragmentPosition.y+=gasAge*3.4;
+        const radius=(3.4+gasAge*(8.6+random(seed+j*5.23)*4.2))*gasSize,fade=(1-smooth((gasAge-1.2)/1.25))*.84,heat=broken?Math.exp(-Math.max(0,gasAge-(he?.65:.40))*2.2):Math.exp(-gasAge*1.2);
+        put(gas,fragmentPosition,radius*(.92+random(seed+j*3.7)*.25),radius,gasAge,fade,seed+j*17.71,heat*(1-j*.014));
+      }
+    }
+    if(age>.2&&age<LIFE){
+      for(let j=0;j<12;j++){
+        const delay=(broken?.40:.2)+j*.075,smokeAge=age-delay;if(smokeAge<0||smokeAge>7.2)continue;
+        const a=seed+j*2.399963,flow=(1-Math.exp(-smokeAge*.8))*(4+random(seed+j*7.17)*9)*gasSize;
+        fragmentPosition.copy(point).addScaledVector(normal,(1+smokeAge*2.3)*size).addScaledVector(tangent,Math.cos(a)*flow).addScaledVector(bitangent,Math.sin(a)*flow*.72);fragmentPosition.x+=smokeAge*.63;fragmentPosition.y+=smokeAge*3.9;
+        const radius=(3.4+smokeAge*(3.5+random(seed+j*6.33)*2.0))*gasSize,alpha=smooth(smokeAge/.25)*(1-smooth((smokeAge-4.2)/3))*.73;
+        put(soot,fragmentPosition,radius*(.84+random(seed+j*19.3)*.32),radius,smokeAge,alpha,seed+j*23.17,Math.exp(-smokeAge*2)*.26);
+      }
+    }
+    if(age>0&&age<1.7){
+      const shockSize=(4+age*105)*size,alpha=(1-smooth(age/1.65))*(reduced?.13:.38);
+      put(rings,point,shockSize,shockSize,age,alpha,seed,0,normal);
+      if(broken&&age>.07){waveDirection.copy(normal).applyAxisAngle(tangent,.48);put(rings,point,shockSize*.83,shockSize*.83,age,alpha*.58,seed+11,1,waveDirection);}
+    }
+    if(!reduced&&age>0&&age<3.2){
+      for(let j=0;j<28;j++){
+        const a=seed+j*2.399963,z=1-2*(j+.5)/28,xy=Math.sqrt(1-z*z),speed=(11+random(seed+j*5.73)*29)*size;
+        fragmentDirection.copy(tangent).multiplyScalar(Math.cos(a)*xy).addScaledVector(bitangent,Math.sin(a)*xy).addScaledVector(normal,z*.80+.38).normalize();
+        fragmentPosition.copy(point).addScaledVector(fragmentDirection,age*speed);fragmentPosition.y-=3.1*age*age;fragmentDirection.y-=6.2*age/speed;
+        put(sparks,fragmentPosition,(.8+speed*.035)*(1-age/3.2),.085*size,age,(1-smooth((age-1.3)/1.8))*.86,seed+j*8.11,Math.exp(-age*.9),fragmentDirection);
+      }
+    }
+    fractures(e,age,shape,seed,broken);
+    if(broken&&!reduced&&age>.045&&age<4.8&&valid3(shape.center)&&validRadii(shape.radii)){
+      surfaceUnit(e,shape,unit);surfaceTangent.crossVectors(Math.abs(unit.y)>.93?xAxis:up,unit).normalize();surfaceBitangent.crossVectors(unit,surfaceTangent).normalize();
+      axis.copy(surfaceTangent);if(valid4(shape.quaternion))axis.applyQuaternion(quaternion.fromArray(shape.quaternion));else axis.applyAxisAngle(up,shape.heading||0);
+      for(let j=0;j<30;j++){
+        const a=seed+j*2.399963,patch=.12+random(seed+j*17.1)*.70;
+        surface.copy(unit).multiplyScalar(Math.cos(patch)).addScaledVector(surfaceTangent,Math.cos(a)*Math.sin(patch)).addScaledVector(surfaceBitangent,Math.sin(a)*Math.sin(patch)).normalize();coordinates(surface,shape,fragmentPosition);
+        fragmentDirection.set(surface.x/shape.radii[0],surface.y/shape.radii[1],surface.z/shape.radii[2]).normalize();if(valid4(shape.quaternion))fragmentDirection.applyQuaternion(quaternion.fromArray(shape.quaternion));else fragmentDirection.applyAxisAngle(up,shape.heading||0);fragmentDirection.normalize();
+        const speed=7+random(seed+j*4.71)*16;fragmentPosition.addScaledVector(fragmentDirection,(age-.045)*speed);fragmentPosition.y-=2.8*age*age;
+        waveDirection.copy(fragmentDirection).applyAxisAngle(axis,Math.sin(age*(2+random(seed+j*21.3)*3)+a)*.6);
+        const width=(2.0+random(seed+j*2.37)*3.2)*(1+age*.08),alpha=(1-smooth((age-1.4)/3.2))*.8;
+        if(fragmentPosition.y>-.6)put(plates,fragmentPosition,width,width,age,alpha,seed+j*2.17,1,waveDirection);
+      }
+    }
+  }
+  function shieldEnabled(ship){const sh=ship?.shield;return Boolean(sh&&(sh.enabled!==false)&&(sh.active!==false||Number(sh.capacityMJ||sh.energyMJ||sh.chargeMJ)>0||sh.broken===true));}
+  function domePose(id,ship,time){
+    const entry=domes[id],sh=ship.shield||{},previous=latest[id],eventShape=previous?eventShield(previous):null,breaking=latestBreak[id];
+    const explicitCenter=sh.center||sh.centerWorld,p=ship.renderPosition||ship.position;
+    if(valid3(explicitCenter))entry.center.fromArray(explicitCenter);else if(valid3(p)){temporary.fromArray(valid3(sh.localCenter)?sh.localCenter:[0,8,0]);if(valid4(ship.renderQuaternion))temporary.applyQuaternion(quaternion.fromArray(ship.renderQuaternion));else temporary.applyAxisAngle(up,Number(ship.heading)||0);entry.center.fromArray(p).add(temporary);}else return;
+    const r=sh.radii||eventShape?.radii;entry.radii.set(validRadii(r)?r[0]:72,validRadii(r)?r[1]:30,validRadii(r)?r[2]:27);entry.heading=Number.isFinite(sh.heading)?sh.heading:Number(ship.heading)||0;
+    entry.mesh.position.copy(entry.center);if(valid4(ship.renderQuaternion))entry.mesh.quaternion.fromArray(ship.renderQuaternion);else entry.mesh.rotation.set(0,entry.heading,0);entry.mesh.scale.copy(entry.radii);
+    const capacity=Math.max(1,Number(sh.maxCapacityMJ||sh.capacityMaxMJ||sh.capacityInitialMJ||sh.maxMJ)||Number(previous&&eventShape.capacityBeforeMJ)||900),available=Math.max(0,Number(sh.capacityMJ??sh.energyMJ??sh.chargeMJ??sh.energy??capacity));
+    const broken=sh.broken===true||available<=.001,breakAge=breaking?time-breaking.time:-1;
+    entry.material.uniforms.uTime.value=time;entry.material.uniforms.uCharge.value=clamp(available/capacity);entry.material.uniforms.uBreakAge.value=broken&&breakAge>=0?breakAge:-1;
+    for(let i=0;i<4;i++)entry.impacts[i].set(1,0,0,-1);
+    let slot=0;if(broken&&breaking){const shape=eventShield(breaking);if(valid3(worldContact(breaking))&&valid3(shape.center)&&validRadii(shape.radii)){surfaceUnit(breaking,shape,unit);entry.impacts[slot++].set(unit.x,unit.y,unit.z,time-breaking.time);}}for(let i=ordered.length-1;i>=0&&slot<4;i--){const event=ordered[i],age=time-event.time;if(age<0)continue;if(age>2.4)break;if(event.target!==id||broken&&event===breaking)continue;
+      const shape=eventShield(event);if(!valid3(worldContact(event))||!valid3(shape.center)||!validRadii(shape.radii))continue;surfaceUnit(event,shape,unit);entry.impacts[slot++].set(unit.x,unit.y,unit.z,age);
+    }
+    entry.mesh.visible=!broken||breakAge>=0&&breakAge<1.9;if(entry.mesh.visible){report.shields++;entry.mesh.updateMatrixWorld(true);const m=entry.mesh.matrixWorld.elements,ex=Math.hypot(m[0],m[4],m[8]),ey=Math.hypot(m[1],m[5],m[9]),ez=Math.hypot(m[2],m[6],m[10]);
+      includePoint(temporary.set(entry.center.x-ex,Math.max(-.5,entry.center.y-ey),entry.center.z-ez),id);includePoint(temporary.set(entry.center.x+ex,entry.center.y+ey,entry.center.z+ez),id);}
+  }
+  function clear(){reset();finish();lastTime=-1;report=emptyReport();root.visible=false;return report;}
+  function update(time,events,state={},sampleTime){
+    if(disposed||options.visible===false||!Number.isFinite(time)||time<0||!Array.isArray(events))return clear();
+    indexEvents(events);reset();report=emptyReport();lastTime=time;
+    const enabled=ids.some(id=>shieldEnabled(state.ships?.[id]));if(!enabled&&!ordered.length){finish();root.visible=false;return report;}
+    for(let i=ordered.length-1;i>=0;i--){const event=ordered[i];if(event.time>time)continue;if(!latest[event.target])latest[event.target]=event;if(!latestBreak[event.target]&&(eventShield(event).broken===true||event.broken===true))latestBreak[event.target]=event;}
+    for(const id of ids){const ship=state.ships?.[id];if(ship&&(shieldEnabled(ship)||latest[id]))domePose(id,ship,time);}
+    // Draw older billows first so a fresh detonation cannot be hidden by soot
+    // emitted earlier in the same incoming salvo. No state is integrated.
+    let firstActive=ordered.length;for(let i=ordered.length-1;i>=0;i--){const age=time-ordered[i].time;if(age<0)continue;if(age>LIFE)break;firstActive=i;}
+    for(let i=firstActive;i<ordered.length;i++){const event=ordered[i],age=time-event.time;if(age<0)break;airburst(event,age);}
+    finish();report.flashes=flash.count;report.gasLobes=gas.count;report.soot=soot.count;report.sparks=sparks.count;report.shockwaves=rings.count;report.shieldPlates=plates.count;report.crackSegments=crackCount/2;report.overflow=overflow;
+    report.active=report.shields>0||batches.some(entry=>entry.count>0)||crackCount>0;root.visible=report.active;return report;
+  }
+  function getBounds(shipId){return (shipId&&shipBounds[shipId]?shipBounds[shipId]:bounds).clone();}
+  function inspect(){return {report:{...report},capacity:{...CAP},lastTime,eventCount:ordered.length,domes,batches,cracks,shipBounds,root};}
+  function dispose(){if(disposed)return;disposed=true;clear();scene.remove(root);domeGeometry.dispose();quad.dispose();plateGeometry.dispose();crackGeometry.dispose();crackMaterial.dispose();for(const id of ids)domes[id].material.dispose();for(const entry of batches){entry.geometry.dispose();entry.material.dispose();}}
+  clear();return {update,clear,dispose,getBounds,inspect,getDiagnostics:inspect,root};
+}
+if(typeof module!=='undefined'&&module.exports)module.exports={createDuelShieldEffects};
+
 // An optional, bounded presentation layer. Dashed paths are launch-time aim
 // estimates; solid paths expose only motion that has already happened.
 function createDuelTrajectories(T,scene,effects) {
@@ -5516,7 +5934,7 @@ function createDuelTrajectories(T,scene,effects) {
   }
   function indexEvents(events){
     if(eventIdentity===events)return;eventIdentity=events;
-    ordered=events.filter(event=>['impact','splash'].includes(event.type)&&event.target&&Number.isFinite(event.time)&&Number.isFinite(event.launchTime)&&event.inRange!==false).slice().sort((a,b)=>b.launchTime-a.launchTime||b.time-a.time||String(a.shotId||a.id).localeCompare(String(b.shotId||b.id)));
+    ordered=events.filter(event=>['impact','splash','shield-impact'].includes(event.type)&&event.target&&Number.isFinite(event.time)&&Number.isFinite(event.launchTime)&&event.inRange!==false).slice().sort((a,b)=>b.launchTime-a.launchTime||b.time-a.time||String(a.shotId||a.id).localeCompare(String(b.shotId||b.id)));
     const representatives=new Map();
     for(const event of ordered){const key=salvoKey(event),old=representatives.get(key);if(!old||(event.barrelIndex??((event.barrel||0)%3))<(old.barrelIndex??((old.barrel||0)%3)))representatives.set(key,event);}
     nominalOrdered=[...representatives.values()].sort((a,b)=>b.launchTime-a.launchTime||b.time-a.time||String(a.shotId||a.id).localeCompare(String(b.shotId||b.id)));
@@ -5573,7 +5991,7 @@ function createDuelTrajectories(T,scene,effects) {
       const entry=pools.markers[report.markers];
       const info=effects.getShotPath?.(event.shotId||event.id,time,{kind:'observed',segments:2},markerScratch,markerInfo);if(!info){report.invalidPaths++;continue;}
       const j=(info.pointCount-1)*3,fade=Math.max(0,1-(time-event.time)/LIFETIME);
-      if(marker(entry,event,markerScratch[j],markerScratch[j+1],markerScratch[j+2],event.type,.9*fade)){report.markers++;report[event.type==='impact'?'impacts':'splashes']++;}
+      if(marker(entry,event,markerScratch[j],markerScratch[j+1],markerScratch[j+2],event.type==='shield-impact'?'impact':event.type,.9*fade)){report.markers++;report[event.type==='splash'?'splashes':'impacts']++;}
     }
     report.active=report.observed+report.nominal+report.markers>0;root.visible=report.active;return report;
   }
@@ -5680,7 +6098,7 @@ function createDuelCompartments(T,built,id){
     const sky=new T.Mesh(new T.SphereGeometry(1800,24,12),skyMaterial);sky.name='Overcast maritime horizon';sky.renderOrder=-100;sky.frustumCulled=false;scene.add(sky);
     scene.add(new T.HemisphereLight(0xe8f2fa,0x687579,.68));const key=new T.DirectionalLight(0xfff1dc,2);key.position.set(30,150,90);key.castShadow=true;key.shadow.mapSize.set(2048,2048);Object.assign(key.shadow.camera,{left:-180,right:180,top:180,bottom:-180,near:1,far:400});key.shadow.bias=-.0002;key.shadow.normalBias=.03;scene.add(key);const fill=new T.DirectionalLight(0xc5dfed,.9);fill.position.set(-90,45,-140);scene.add(fill);
     const models={yamato:buildYamato(T),iowa:buildIowa(T)};
-    const sea=createDuelOcean(T,scene,models),ballistics=ballisticsExperiment?createDuelBallistics(T,models,sea):null;
+    const sea=createDuelOcean(T,scene,models),shieldPoseResolver=createDuelShipPoseResolver(T,sea),ballistics=ballisticsExperiment?createDuelBallistics(T,models,sea):null;
     function mergeParts(built,group){
       built.ship.updateMatrixWorld(true);const inverse=new T.Matrix4().copy(group.matrixWorld).invert(),batches=new Map(),originals=[];
       function collect(o){if(o!==group&&o.userData.turretDynamic)return;if(o.isMesh&&!Array.isArray(o.material)&&!o.material.map){const g=o.geometry.index?o.geometry.toNonIndexed():o.geometry.clone();g.applyMatrix4(new T.Matrix4().multiplyMatrices(inverse,o.matrixWorld));if(!g.attributes.normal)g.computeVertexNormals();let b=batches.get(o.material);if(!b){b={positions:[],normals:[]};batches.set(o.material,b);}b.positions.push(new Float32Array(g.attributes.position.array));b.normals.push(new Float32Array(g.attributes.normal.array));g.dispose();originals.push(o);}for(const child of o.children)collect(child);}collect(group);
@@ -5690,13 +6108,15 @@ function createDuelCompartments(T,built,id){
     for(const [id,built] of Object.entries(models)){mergeParts(built,built.ship);for(const turret of [...built.armament.mainTurrets,...built.armament.secondaryTurrets]){mergeParts(built,turret.mount);for(const barrel of turret.barrels)mergeParts(built,barrel);}scene.add(built.ship);compartments[id]=createDuelCompartments(T,built,id);}
     stage.dataset.components=String(models.yamato.componentCount+models.iowa.componentCount);stage.dataset.triangles=String(models.yamato.triangleCount+models.iowa.triangleCount);
     const effects=createNavalDuelEffects(T,scene,camera,models,{waterHeight:(x,z,t)=>sea.sampleSurface(x,z,t+oceanOffset,seaState).height}),trajectories=createDuelTrajectories(T,scene,effects),reduced=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const shieldEffects=createDuelShieldEffects(T,scene,camera,models,{reducedMotion:reduced});
+    const shieldInput=root.querySelector('select[data-shield]'),shieldReplayButton=root.querySelector('button[data-shield-replay]'),shieldSummary=root.querySelector('[data-shield-summary]');
     const start=root.querySelector('[data-start]'),replay=root.querySelector('[data-replay]'),pause=root.querySelector('[data-pause]'),rangeInput=root.querySelector('[data-range]'),visibilityInput=root.querySelector('[data-visibility]'),accuracyInput=root.querySelector('[data-accuracy]'),speedInput=root.querySelector('[data-speed]'),timeInput=root.querySelector('[data-time]'),focusInput=root.querySelector('[data-focus]'),cutawayInput=root.querySelector('[data-cutaway]'),resultText=root.querySelector('[data-result]'),log=root.querySelector('[data-events]');
     const highRiskExperiment=root.dataset.experiment==='high-magazine',chainExperiment=root.dataset.experiment==='chain-magazine',directHitExperiment=root.dataset.experiment==='direct-hit'||chainExperiment,damagePathExperiment=root.dataset.experiment==='damage-path',trajectoryExperiment=root.dataset.experiment==='trajectories'||ballisticsExperiment;
     const directHitSeed=chainExperiment?20:63;
     const yamatoAmmoInput=root.querySelector('[data-yamato-ammo]'),iowaAmmoInput=root.querySelector('[data-iowa-ammo]');
     root.querySelectorAll('[data-ammo-field]').forEach(field=>field.hidden=!energeticDamageExperiment);
-    function buildBattle(settings){return createNavalDuel({...settings,...(ballistics&&settings.ballisticsMode==='mesh-path'?{ballistics,ballisticSeaState:settings.ballisticSeaState||'moderate',ballisticOceanOffset:settings.ballisticOceanOffset||0,ballisticImpactMotion:!reduced}:{})});}
-    let config={seed:vitalHitsExperiment?8:ballisticsExperiment?841029996:damagePathExperiment?3280744387:directHitExperiment?directHitSeed:highRiskExperiment?3298610066:19440426,encounterMode:directFireExperiment?'set-range':'maximum',rangeKm:directFireExperiment?6:36,visibility:'clear',accuracyScale:ballisticsExperiment?1.3:highRiskExperiment?1.1:1,maneuverMode:'evasive',damageModel:energeticDamageExperiment?'energetic-crew':crewDamageExperiment?'crew-vital':vitalHitsExperiment?'vital-path':'critical',repairPolicy:'balanced',magazineRisk:highRiskExperiment?'high':'normal',magazinePropagation:chainExperiment?'chain':'isolated',ballisticsMode:ballisticsExperiment?'mesh-path':null,gunneryModel:directFireExperiment?'range-aware':null,kinematicsModel:kinematicsExperiment?'si-drag':null,tacticalModel:tacticsExperiment?'salvo-pressure':null,fireControlModel:individualGunneryExperiment?'per-gun':null,combatModel:fragileCombatExperiment?'fragile-maneuver':null,maneuverRevision:rangeControlExperiment?'range-control-v18':null,engagementModel:rangeControlExperiment?'mutual-fire':null,coordinateModel:rangeControlExperiment?'fixed-scale':null,rangePolicy:'hold',yamatoDoctrine:'balanced',iowaDoctrine:'balanced',tacticalOrders:[],ballisticSeaState:'moderate',ballisticOceanOffset:0,yamatoAmmo:'ap',iowaAmmo:'ap'},duel=buildBattle(config),snapshot=duel.sample(0),clock=0,playing=false,hasRun=false,speed=4,focus='whole',view='angle',cutaway=false,exteriorView=null,blastPreview=null,zone='engine',seaState='moderate',oceanOffset=0,battleNumber=0,lastSaved='',lastLog='',lastResult='',lastFrame=performance.now(),raf=0,dirty=true,cameraAnimation=null,trackedFleetBox=null,trackedFleetCenter=new T.Vector3(),trackedFramingDistance=null,framingUpdatedAt=0;
+    function buildBattle(settings){return createNavalDuel({...settings,...(settings.shieldMode==='energy-shell'?{shieldPoseResolver}:{}),...(ballistics&&settings.ballisticsMode==='mesh-path'?{ballistics,ballisticSeaState:settings.ballisticSeaState||'moderate',ballisticOceanOffset:settings.ballisticOceanOffset||0,ballisticImpactMotion:!reduced}:{})});}
+    let config={shieldMode:null,seed:vitalHitsExperiment?8:ballisticsExperiment?841029996:damagePathExperiment?3280744387:directHitExperiment?directHitSeed:highRiskExperiment?3298610066:19440426,encounterMode:directFireExperiment?'set-range':'maximum',rangeKm:directFireExperiment?6:36,visibility:'clear',accuracyScale:ballisticsExperiment?1.3:highRiskExperiment?1.1:1,maneuverMode:'evasive',damageModel:energeticDamageExperiment?'energetic-crew':crewDamageExperiment?'crew-vital':vitalHitsExperiment?'vital-path':'critical',repairPolicy:'balanced',magazineRisk:highRiskExperiment?'high':'normal',magazinePropagation:chainExperiment?'chain':'isolated',ballisticsMode:ballisticsExperiment?'mesh-path':null,gunneryModel:directFireExperiment?'range-aware':null,kinematicsModel:kinematicsExperiment?'si-drag':null,tacticalModel:tacticsExperiment?'salvo-pressure':null,fireControlModel:individualGunneryExperiment?'per-gun':null,combatModel:fragileCombatExperiment?'fragile-maneuver':null,maneuverRevision:rangeControlExperiment?'range-control-v18':null,engagementModel:rangeControlExperiment?'mutual-fire':null,coordinateModel:rangeControlExperiment?'fixed-scale':null,rangePolicy:'hold',yamatoDoctrine:'balanced',iowaDoctrine:'balanced',tacticalOrders:[],ballisticSeaState:'moderate',ballisticOceanOffset:0,yamatoAmmo:'ap',iowaAmmo:'ap'},duel=buildBattle(config),snapshot=duel.sample(0),clock=0,playing=false,hasRun=false,speed=4,focus='whole',view='angle',cutaway=false,exteriorView=null,blastPreview=null,zone='engine',seaState='moderate',oceanOffset=0,battleNumber=0,lastSaved='',lastLog='',lastResult='',lastFrame=performance.now(),raf=0,dirty=true,cameraAnimation=null,trackedFleetBox=null,trackedFleetCenter=new T.Vector3(),trackedFramingDistance=null,framingUpdatedAt=0;
     const seaInput=root.querySelector('select[data-sea]'),sampleVisual=createDuelRenderSampler(T,sea,()=>duel,()=>seaState,()=>oceanOffset,()=>({impactMotion:!reduced}));
     const trajectoryInput=root.querySelector('[data-trajectories]'),trajectoryLegend=root.querySelector('[data-trajectory-legend]'),trajectoryTheme={};let trajectoryMode=trajectoryExperiment;
     trajectoryInput.checked=trajectoryMode;
@@ -5870,17 +6290,20 @@ function createDuelCompartments(T,built,id){
           equipment.textContent=(attention.i+1)+'번 탄약고 · '+label+(m.repairStatus==='working'&&m.repairTarget?' · 수리 '+pct(m.equipment[m.repairTarget].repairProgress)+'%':'')+(!m.flooded&&m.heat>.35&&m.riskMultiplier>1.05?' · 위험 증폭 '+m.riskMultiplier.toFixed(1)+'×':'');
         }
       }
+      shieldSummary.hidden=config.shieldMode!=='energy-shell'||!!blastPreview||cutaway;
+      if(!shieldSummary.hidden)shieldSummary.textContent='SF 실드 · '+['yamato','iowa'].map(id=>{const q=snapshot.ships[id].shield;return (id==='yamato'?'야마토':'아이오와')+' '+(q?.active?Math.round(q.capacityMJ/q.maxCapacityMJ*100)+'% · '+Math.round(q.capacityMJ)+' MJ':'붕괴 · 방호 없음');}).join(' / ');
+      shieldReplayButton.hidden=config.shieldMode!=='energy-shell'||!!blastPreview;shieldReplayButton.disabled=doctrineBusy||battleBusy||!duel.events.some(e=>e.type==='shield-impact');
       updateZone();const result=snapshot.result,phase=blastPreview?'유폭 연출 · '+(blastPreview.ship==='iowa'?'아이오와':'야마토')+' '+(blastPreview.propagation==='chain'?' · 연쇄 유폭': ' '+(blastPreview.turretIndex+1)+'번 탄약고'):!hasRun?'교전 대기':result?result.label+((config.magazineRisk==='high'||config.magazinePropagation==='chain')&&clock>result.time&&clock<duel.duration?' · 손상 경과 관찰':''):'교전 중',text=phase;if(resultText.textContent!==text)resultText.textContent=text;
       if(result&&result.label!==lastResult){lastResult=result.label;stage.setAttribute('aria-label','야마토와 아이오와의 가상 교전. '+result.label+'. 재생 위치를 움직이면 피해 발생 과정을 다시 볼 수 있습니다.');}
       else if(!result&&lastResult){lastResult='';stage.setAttribute('aria-label','야마토와 아이오와의 가상 일대일 포격전. 부위별 피해가 화력과 속력에 영향을 줍니다. 피해 구획을 켜면 개념적인 기관실과 탄약고 배치를 볼 수 있습니다.');}
       const shownTime=blastPreview?blastPreview.elapsed:clock,shownDuration=blastPreview?24:duel.duration,canPlay=hasRun||!!blastPreview;
       root.querySelector('[data-time-value]').textContent=canPlay?fmt(shownTime)+' / '+fmt(shownDuration):fmt(0);timeInput.max=String(shownDuration);timeInput.value=String(shownTime);timeInput.disabled=!canPlay||doctrineBusy||battleBusy;pause.disabled=doctrineBusy||battleBusy||!canPlay||!blastPreview&&shownTime>=shownDuration;pause.textContent=shownTime>=shownDuration?(blastPreview?'유폭 다시 재생':'교전 종료'):playing?'일시정지':'계속 재생';pause.setAttribute('aria-pressed',String(canPlay&&!playing));replay.disabled=doctrineBusy||battleBusy||!hasRun||!!blastPreview;start.disabled=doctrineBusy||battleBusy||!!blastPreview;start.textContent=hasRun?'새 교전':'교전 시작';
-      root.querySelector('[data-battle-number]').textContent=hasRun?'교전 '+battleNumber+' · '+(config.encounterMode==='maximum'?(config.engagementModel==='mutual-fire'?'36 km 장거리 맞포격':'최대 사거리 조우'):config.rangeKm+' km 조우')+(config.ballisticsMode==='mesh-path'?' · 외형 충돌 판정':config.damageModel==='critical'?' · 탄약고 직격 판정':config.damageModel==='cascade'?' · 구획 열 전파':config.damageModel==='legacy'?' · 기존 교전':' · 기존 교전 · 설비 고장·수리')+(['vital-path','crew-vital','energetic-crew'].includes(config.damageModel)?' · 급소 관통 피해':'')+(['crew-vital','energetic-crew'].includes(config.damageModel)?' · 인력·손상통제':'')+(config.damageModel==='energetic-crew'?' · 탄종·연료 화재':'')+(config.magazineRisk==='high'?' · 유폭 위험 높음':'')+(config.magazinePropagation==='chain'?' · 연쇄 전파 실험':''):'교전 대기';
+      root.querySelector('[data-battle-number]').textContent=hasRun?'교전 '+battleNumber+' · '+(config.encounterMode==='maximum'?(config.engagementModel==='mutual-fire'?'36 km 장거리 맞포격':'최대 사거리 조우'):config.rangeKm+' km 조우')+(config.ballisticsMode==='mesh-path'?' · 외형 충돌 판정':config.damageModel==='critical'?' · 탄약고 직격 판정':config.damageModel==='cascade'?' · 구획 열 전파':config.damageModel==='legacy'?' · 기존 교전':' · 기존 교전 · 설비 고장·수리')+(['vital-path','crew-vital','energetic-crew'].includes(config.damageModel)?' · 급소 관통 피해':'')+(['crew-vital','energetic-crew'].includes(config.damageModel)?' · 인력·손상통제':'')+(config.damageModel==='energetic-crew'?' · 탄종·연료 화재':'')+(config.shieldMode==='energy-shell'?' · SF 실드':'')+(config.magazineRisk==='high'?' · 유폭 위험 높음':'')+(config.magazinePropagation==='chain'?' · 연쇄 전파 실험':''):'교전 대기';
       if(!cutaway&&!blastPreview)root.querySelector('[data-scale]').textContent=config.kinematicsModel==='si-drag'?'함선 확대 표시':'표시 거리·비행 시간 축약';
       root.querySelector('[data-current-range]').textContent='함간 거리 '+(Number(snapshot.currentRangeKm)||config.rangeKm).toFixed(1)+' km';const closing=Number(snapshot.closingSpeedKnots)||0;root.querySelector('[data-closing-speed]').textContent=Math.abs(closing)<.5?'거리 유지':(closing>0?'접근 ':'이격 ')+Math.abs(closing).toFixed(1)+' kn';root.querySelector('[data-encounter-phase]').textContent=config.maneuverRevision==='range-control-v18'?(config.rangePolicy==='close'?'접근 목표 ':'거리 유지 목표 ')+(duel.initialConfig.targetRangeKm||config.rangeKm).toFixed(1)+' km':config.gunneryModel==='range-aware'&&config.encounterMode!=='maximum'?((Number(snapshot.currentRangeKm)||config.rangeKm)<=12?'근거리 교전':'거리 지정 교전'):config.encounterMode==='maximum'?({approach:'원거리 접근',exchange:'양함 포격', 'mid-range':'중거리 교전'}[snapshot.encounterPhase]||'최대 사거리 조우'):'거리 지정 교전';
       const recent=!hasRun||blastPreview?[]:duel.events.filter(e=>e.time<=clock&&e.label&&e.type!=='splash').slice(-8),keyString=String(config.seed)+'|'+recent.map(e=>e.id+':'+eventLabel(e)).join('|');log.setAttribute('aria-live',playing?'off':'polite');
       if(keyString!==lastLog){lastLog=keyString;log.replaceChildren();for(const event of recent)appendEventItem(log,event);root.querySelector('[data-last-event]').textContent=recent.length?eventLabel(recent.at(-1)):'아직 사격하지 않았습니다';}
-      Object.assign(stage.dataset,{time:clock.toFixed(2),previewTime:blastPreview?blastPreview.elapsed.toFixed(2):'',previewMagazine:blastPreview?blastPreview.ship+':'+blastPreview.turretIndex:'',previewPropagation:blastPreview?.propagation||'',magazinePropagation:config.magazinePropagation||'isolated',seed:String(config.seed),playing:String(playing),yamatoGuns:String(snapshot.ships.yamato.activeGuns),iowaGuns:String(snapshot.ships.iowa.activeGuns),yamatoFlood:String(snapshot.ships.yamato.flooding),iowaFlood:String(snapshot.ships.iowa.flooding),result:result?.reason||'none',focus,cutaway:String(cutaway),maneuverMode:config.maneuverMode,encounterMode:config.encounterMode,damageModel:config.damageModel,revision:duel.initialConfig.modelRevision,yamatoAmmo:config.yamatoAmmo||'ap',iowaAmmo:config.iowaAmmo||'ap',yamatoCrew:String(snapshot.ships.yamato.crew?.operators??1),iowaCrew:String(snapshot.ships.iowa.crew?.operators??1),yamatoRepairParties:String(snapshot.ships.yamato.crew?.repairParties??1),iowaRepairParties:String(snapshot.ships.iowa.crew?.repairParties??1),ballisticsMode:duel.initialConfig.ballistics||'proxy',gunneryModel:config.gunneryModel||'legacy-range',kinematicsModel:config.kinematicsModel||'legacy-flight',repairPolicy:config.repairPolicy,magazineRisk:config.magazineRisk,currentRangeKm:String(snapshot.currentRangeKm||config.rangeKm),yamatoInRange:String(snapshot.ships.yamato.fireSolution?.inRange),iowaInRange:String(snapshot.ships.iowa.fireSolution?.inRange),yamatoHeading:String(snapshot.ships.yamato.heading),iowaHeading:String(snapshot.ships.iowa.heading),yamatoPosition:snapshot.ships.yamato.position.join(','),iowaPosition:snapshot.ships.iowa.position.join(','),yamatoEvasion:String(snapshot.ships.yamato.maneuver?.evasionEffect||0),iowaEvasion:String(snapshot.ships.iowa.maneuver?.evasionEffect||0),maneuverRevision:config.maneuverRevision||'legacy',engagementModel:config.engagementModel||'legacy',coordinateModel:config.coordinateModel||'scenario-scale',displayUnitsPerMeter:String(duel.initialConfig.displayUnitsPerMeter||0),rangePolicy:config.rangePolicy||'legacy',targetRangeKm:String(duel.initialConfig.targetRangeKm||config.rangeKm)});
+      Object.assign(stage.dataset,{time:clock.toFixed(2),previewTime:blastPreview?blastPreview.elapsed.toFixed(2):'',previewMagazine:blastPreview?blastPreview.ship+':'+blastPreview.turretIndex:'',previewPropagation:blastPreview?.propagation||'',magazinePropagation:config.magazinePropagation||'isolated',seed:String(config.seed),playing:String(playing),yamatoGuns:String(snapshot.ships.yamato.activeGuns),iowaGuns:String(snapshot.ships.iowa.activeGuns),yamatoFlood:String(snapshot.ships.yamato.flooding),iowaFlood:String(snapshot.ships.iowa.flooding),result:result?.reason||'none',focus,cutaway:String(cutaway),maneuverMode:config.maneuverMode,encounterMode:config.encounterMode,damageModel:config.damageModel,revision:duel.initialConfig.modelRevision,yamatoAmmo:config.yamatoAmmo||'ap',iowaAmmo:config.iowaAmmo||'ap',yamatoCrew:String(snapshot.ships.yamato.crew?.operators??1),iowaCrew:String(snapshot.ships.iowa.crew?.operators??1),yamatoRepairParties:String(snapshot.ships.yamato.crew?.repairParties??1),iowaRepairParties:String(snapshot.ships.iowa.crew?.repairParties??1),ballisticsMode:duel.initialConfig.ballistics||'proxy',gunneryModel:config.gunneryModel||'legacy-range',kinematicsModel:config.kinematicsModel||'legacy-flight',repairPolicy:config.repairPolicy,magazineRisk:config.magazineRisk,currentRangeKm:String(snapshot.currentRangeKm||config.rangeKm),yamatoInRange:String(snapshot.ships.yamato.fireSolution?.inRange),iowaInRange:String(snapshot.ships.iowa.fireSolution?.inRange),yamatoHeading:String(snapshot.ships.yamato.heading),iowaHeading:String(snapshot.ships.iowa.heading),yamatoPosition:snapshot.ships.yamato.position.join(','),iowaPosition:snapshot.ships.iowa.position.join(','),yamatoEvasion:String(snapshot.ships.yamato.maneuver?.evasionEffect||0),iowaEvasion:String(snapshot.ships.iowa.maneuver?.evasionEffect||0),maneuverRevision:config.maneuverRevision||'legacy',engagementModel:config.engagementModel||'legacy',shieldMode:config.shieldMode||'none',yamatoShield:String(snapshot.ships.yamato.shield?.capacityMJ??0),iowaShield:String(snapshot.ships.iowa.shield?.capacityMJ??0),coordinateModel:config.coordinateModel||'scenario-scale',displayUnitsPerMeter:String(duel.initialConfig.displayUnitsPerMeter||0),rangePolicy:config.rangePolicy||'legacy',targetRangeKm:String(duel.initialConfig.targetRangeKm||config.rangeKm)});
       updateTactics();
     }
     function updateTactics(){
@@ -5925,8 +6348,15 @@ function createDuelCompartments(T,built,id){
     function currentCenter(){const shown=displayedState();if(focus==='whole'){const a=shown.ships.yamato.position,b=shown.ships.iowa.position;return new T.Vector3((a[0]+b[0])*.5,9,(a[2]+b[2])*.5);}const s=shown.ships[focus];return new T.Vector3(s.position[0],blastPreview?22:cutaway?s.renderPosition[1]:5,s.position[2]);}
     function fleetBounds(){const box=new T.Box3();for(const s of Object.values(displayedState().ships)){const c=Math.abs(Math.cos(s.heading)),n=Math.abs(Math.sin(s.heading)),x=c*61+n*14,z=n*61+c*14;box.expandByPoint(new T.Vector3(s.position[0]-x,-5,s.position[2]-z));box.expandByPoint(new T.Vector3(s.position[0]+x,36,s.position[2]+z));}return box.expandByScalar(8);}
     function framingBox(){
-      const box=new T.Box3();if(focus==='whole')box.copy(fleetBounds());else{box.setFromObject(models[focus].ship);const py=displayedState().ships[focus].renderPosition[1];box.min.y=cutaway?py-4:Math.min(-2,py-5);box.max.y=cutaway?py+5:Math.max(8,py+28);box.expandByScalar(2);}
+      const shown=displayedState(),box=new T.Box3();if(focus==='whole')box.copy(fleetBounds());else{box.setFromObject(models[focus].ship);const py=displayedState().ships[focus].renderPosition[1];box.min.y=cutaway?py-4:Math.min(-2,py-5);box.max.y=cutaway?py+5:Math.max(8,py+28);box.expandByScalar(2);}
       if(!cutaway){const blastBounds=effects.getMagazineBounds?.(focus==='whole'?undefined:focus);if(blastBounds&&!blastBounds.isEmpty())box.union(blastBounds);if(blastPreview){const p=displayedState().ships[blastPreview.ship].renderPosition;box.expandByPoint(new T.Vector3(p[0]-65,p[1]-5,p[2]-55));box.expandByPoint(new T.Vector3(p[0]+65,p[1]+85,p[2]+55));}}
+      if(!cutaway&&!blastPreview&&config.shieldMode==='energy-shell'){
+        // Frame the shield envelope rather than chasing far-flying fragments.
+        // A fixed envelope keeps the collision action large during slow motion.
+        for(const id of focus==='whole'?['yamato','iowa']:[focus]){
+          const shield=shown.ships[id].shield;if(!shield)continue;const mesh=models[id].ship,r=shield.radii||[72,30,27];mesh.updateMatrixWorld(true);const m=mesh.matrixWorld.elements,at=mesh.localToWorld(new T.Vector3(...(shield.localCenter||[0,8,0]))),extent=new T.Vector3(Math.hypot(m[0]*r[0],m[4]*r[1],m[8]*r[2])+10,Math.hypot(m[1]*r[0],m[5]*r[1],m[9]*r[2])+10,Math.hypot(m[2]*r[0],m[6]*r[1],m[10]*r[2])+10);box.expandByPoint(at.clone().sub(extent));box.expandByPoint(at.clone().add(extent));
+        }
+      }
       if(focus==='whole'&&trajectoryMode&&!cutaway&&!blastPreview){const paths=trajectories.getBounds();if(paths&&!paths.isEmpty())box.union(paths);}
       return box;
     }
@@ -5972,10 +6402,17 @@ function createDuelCompartments(T,built,id){
     function finishBlastPreview(save=true){
       if(!blastPreview)return;const saved=blastPreview.saved;blastPreview=null;effects.clear();focus=saved.focus;view=saved.view;cutaway=saved.cutaway;exteriorView=saved.exteriorView;focusInput.value=focus;cutawayInput.checked=cutaway;playing=saved.wasPlaying&&hasRun&&clock<duel.duration;cameraAnimation=null;setSection();update();fit(false);camera.position.fromArray(saved.camera);controls.target.fromArray(saved.target);if(saved.aspect>camera.aspect)camera.position.sub(controls.target).multiplyScalar(saved.aspect/camera.aspect).add(controls.target);controls.update();resetTracking();stage.setAttribute('aria-label','야마토와 아이오와의 가상 교전. '+(snapshot.result?.label||'부위별 피해가 화력과 속력에 영향을 줍니다.'));dirty=true;if(save)persist();
     }
+    function showShieldAction(autoplay=true){
+      if(doctrineBusy||battleBusy||blastPreview||config.shieldMode!=='energy-shell')return false;
+      const event=duel.events.find(e=>e.type==='shield-impact'&&e.shield?.broken)||duel.events.find(e=>e.type==='shield-impact');if(!event)return false;
+      clock=Math.max(0,event.time-.65);hasRun=true;playing=autoplay;speed=.25;speedInput.value=String(speed);focus=event.target;focusInput.value=focus;cutaway=false;cutawayInput.checked=false;exteriorView=null;trajectoryMode=false;trajectoryInput.checked=false;view='angle';cameraAnimation=null;setSection();update();fit(false);
+      const outward=new T.Vector3().fromArray(event.shield.normal);outward.y=Math.max(.38,outward.y+.3);outward.applyAxisAngle(new T.Vector3(0,1,0),.42).normalize();const at=currentCenter(),box=framingBox();camera.position.copy(at).addScaledVector(outward,framingDistance(at,box,outward)*1.12);controls.target.copy(at);controls.update();resetTracking();dirty=true;persist();return true;
+    }
     function update(status=true){
       snapshot=sampleVisual(clock);if(blastPreview)blastPreview.frameState=sampleVisual(blastPreview.poseTime);const shown=displayedState();applyPose(shown);
       const effectTime=blastPreview?blastPreview.poseTime+blastPreview.elapsed:hasRun?clock:-1,effectEvents=blastPreview?blastPreview.events:duel.events,effectSampler=blastPreview?t=>({...blastPreview.frameState,time:t}):sampleVisual;
-      const report=effects.update(effectTime,effectEvents,shown,effectSampler);if(report)for(const [k,v] of Object.entries(report))if(typeof v==='number')stage.dataset['vfx'+k.charAt(0).toUpperCase()+k.slice(1)]=String(v);
+      const report=effects.update(effectTime,effectEvents,shown,effectSampler);
+      const shieldReport=shieldEffects.update(cutaway||blastPreview?-1:effectTime,effectEvents,shown,effectSampler);if(shieldReport)for(const[k,v]of Object.entries(shieldReport))if(typeof v==='number')stage.dataset['shieldVfx'+k.charAt(0).toUpperCase()+k.slice(1)]=String(v);if(report)for(const [k,v] of Object.entries(report))if(typeof v==='number')stage.dataset['vfx'+k.charAt(0).toUpperCase()+k.slice(1)]=String(v);
       const paths=trajectories.update(effectTime,effectEvents,{visible:trajectoryMode,theme:trajectoryTheme,cutaway,preview:!!blastPreview});
       trajectoryLegend.hidden=!trajectoryMode||cutaway||!!blastPreview;trajectoryInput.disabled=cutaway||!!blastPreview;
       stage.dataset.trajectoryMode=String(trajectoryMode);stage.dataset.trajectoryVisible=String(trajectories.root.visible);
@@ -5996,13 +6433,13 @@ function createDuelCompartments(T,built,id){
       for(const id of ['yamato','iowa']){const motion=snapshot.ships[id].impactMotion;stage.dataset[id+'ImpactEnergy']=String(motion?.energy||0);stage.dataset[id+'ImpactRoll']=String(motion?.roll||0);}
     }
     function persist(){
-      const saved=blastPreview?.saved,state={modelContent:{model:'야마토 × 아이오와 · 1944 가상 교전',battle:{seed:config.seed,encounterMode:config.encounterMode,rangeKm:config.rangeKm,currentRangeKm:Number((snapshot.currentRangeKm||config.rangeKm).toFixed(2)),visibility:config.visibility,accuracyScale:config.accuracyScale,revision:duel.initialConfig.modelRevision,repairPolicy:config.repairPolicy,magazineRisk:config.magazineRisk,magazinePropagation:config.magazinePropagation||'isolated',maneuverMode:config.maneuverMode,maneuverRevision:config.maneuverRevision||null,engagementModel:config.engagementModel||null,coordinateModel:config.coordinateModel||null,rangePolicy:config.rangePolicy||null,targetRangeKm:duel.initialConfig.targetRangeKm||null,seaState,trajectoryMode,ballisticsMode:config.ballisticsMode||null,gunneryModel:config.gunneryModel||null,kinematicsModel:config.kinematicsModel||null,tacticalModel:config.tacticalModel||null,fireControlModel:config.fireControlModel||null,combatModel:config.combatModel||null,yamatoDoctrine:config.yamatoDoctrine||'balanced',iowaDoctrine:config.iowaDoctrine||'balanced',tacticalOrders:config.tacticalOrders||[],damageModel:config.damageModel,yamatoAmmo:config.yamatoAmmo||'ap',iowaAmmo:config.iowaAmmo||'ap',speed,time:clock,result:snapshot.result?.label||null,focus:saved?.focus||focus,cutaway:saved?saved.cutaway:cutaway},effectPreview:blastPreview?{ship:blastPreview.ship,magazine:blastPreview.turretIndex+1,propagation:blastPreview.propagation,time:Number(blastPreview.elapsed.toFixed(2))}:null,ships:Object.fromEntries(Object.entries(snapshot.ships).map(([id,s])=>[id,{speedKnots:Number(s.speedKnots.toFixed(1)),activeGuns:s.activeGuns,hitsReceived:s.hitsReceived,penetrationsReceived:s.penetrationsReceived,...(s.power?{power:{output:pct(s.power.output),status:s.power.status,supplyRate:pct(s.supplyRate)},criticalCause:s.criticalCause||null,feed:s.turrets.map((t,i)=>({number:i+1,available:t.feed?.available??true,supplyRate:pct(t.feed?.supplyRate??1),status:t.feed?.status||null}))}:{}),...(s.crew?{crew:{operators:pct(s.crew.operators),repairParties:pct(s.crew.repairParties)},damageControl:{capacity:Number(s.damageControl.capacity.toFixed(3)),demand:Number(s.damageControl.demand.toFixed(3)),allocated:Number(s.damageControl.allocated.toFixed(3)),activeZones:s.damageControl.activeZones,status:s.damageControl.status},operationalFailure:s.operationalFailure||null}:{}),...(s.fuel?{ammoType:s.ammoType,fuel:{leak:pct(s.fuel.leak),remaining:pct(s.fuel.remaining),burning:s.fuel.burning}}:{}),integrity:pct(s.integrity),flooding:pct(s.flooding),fire:pct(s.fire),status:s.status,sinkingCause:s.sinking?.causeLabel||null,structuralFailure:s.structuralFailure||null,magazines:s.turrets.map((t,i)=>({number:i+1,detonated:t.magazine.detonated,flooded:t.magazine.flooded,heat:pct(t.magazine.heat),state:t.magazine.stateLabel||null,detonationCause:t.magazine.detonationCause||null,heatSource:t.magazine.heatSource||null,floodProgress:pct(t.magazine.floodProgress),riskMultiplier:Number((t.magazine.riskMultiplier||1).toFixed(2)),repairStatus:t.magazine.repairStatus||null,equipment:t.magazine.equipment?Object.fromEntries(Object.entries(t.magazine.equipment).map(([k,e])=>[k,{health:pct(e.health),fault:e.fault,repairProgress:pct(e.repairProgress)}])):null})),maneuver:s.maneuver?.name||'직진',...(s.combat?{combat:s.combat,maneuverDiagnostics:{trackingErrorMeters:s.maneuver?.trackingErrorMeters||0,turnRateDeg:s.maneuver?.turnRateDeg||0,turnSpeedLoss:s.maneuver?.turnSpeedLoss||0,incomingShells:s.maneuver?.incomingShells||0}}:{}),aimDisruption:pct(s.maneuver?.evasionEffect),inGunRange:s.fireSolution?.inRange??true}]))},privateContent:{version:duel.initialConfig.modelRevision==='naval-duel-20'?'duel-20':rangeControlExperiment?'duel-19':fragileCombatExperiment?'duel-17':individualGunneryExperiment?'duel-16':tacticsExperiment?'duel-15':kinematicsExperiment?'duel-14':energeticDamageExperiment?'duel-13':crewDamageExperiment?'duel-12':vitalHitsExperiment?'duel-11':directFireExperiment?'duel-10':ballisticsExperiment?'duel-9':'duel-8',hasRun,battleNumber,view:saved?.view||view,zone,oceanOffset,exteriorView:saved?saved.exteriorView:exteriorView,camera:saved?.camera||cameraAnimation?.to.toArray()||camera.position.toArray(),target:saved?.target||cameraAnimation?.at.toArray()||controls.target.toArray(),aspect:saved?.aspect||camera.aspect,blastPreview:blastPreview?{ship:blastPreview.ship,turretIndex:blastPreview.turretIndex,propagation:blastPreview.propagation,elapsed:blastPreview.elapsed}:null}};lastSaved=JSON.stringify(state);if(window.openai?.setWidgetState)Promise.resolve(window.openai.setWidgetState(state)).catch(()=>{});
+      const saved=blastPreview?.saved,state={modelContent:{model:'야마토 × 아이오와 · 1944 가상 교전',battle:{shieldMode:config.shieldMode||null,seed:config.seed,encounterMode:config.encounterMode,rangeKm:config.rangeKm,currentRangeKm:Number((snapshot.currentRangeKm||config.rangeKm).toFixed(2)),visibility:config.visibility,accuracyScale:config.accuracyScale,revision:duel.initialConfig.modelRevision,repairPolicy:config.repairPolicy,magazineRisk:config.magazineRisk,magazinePropagation:config.magazinePropagation||'isolated',maneuverMode:config.maneuverMode,maneuverRevision:config.maneuverRevision||null,engagementModel:config.engagementModel||null,coordinateModel:config.coordinateModel||null,rangePolicy:config.rangePolicy||null,targetRangeKm:duel.initialConfig.targetRangeKm||null,seaState,trajectoryMode,ballisticsMode:config.ballisticsMode||null,gunneryModel:config.gunneryModel||null,kinematicsModel:config.kinematicsModel||null,tacticalModel:config.tacticalModel||null,fireControlModel:config.fireControlModel||null,combatModel:config.combatModel||null,yamatoDoctrine:config.yamatoDoctrine||'balanced',iowaDoctrine:config.iowaDoctrine||'balanced',tacticalOrders:config.tacticalOrders||[],damageModel:config.damageModel,yamatoAmmo:config.yamatoAmmo||'ap',iowaAmmo:config.iowaAmmo||'ap',speed,time:clock,result:snapshot.result?.label||null,focus:saved?.focus||focus,cutaway:saved?saved.cutaway:cutaway},effectPreview:blastPreview?{ship:blastPreview.ship,magazine:blastPreview.turretIndex+1,propagation:blastPreview.propagation,time:Number(blastPreview.elapsed.toFixed(2))}:null,ships:Object.fromEntries(Object.entries(snapshot.ships).map(([id,s])=>[id,{speedKnots:Number(s.speedKnots.toFixed(1)),activeGuns:s.activeGuns,hitsReceived:s.hitsReceived,penetrationsReceived:s.penetrationsReceived,...(s.power?{power:{output:pct(s.power.output),status:s.power.status,supplyRate:pct(s.supplyRate)},criticalCause:s.criticalCause||null,feed:s.turrets.map((t,i)=>({number:i+1,available:t.feed?.available??true,supplyRate:pct(t.feed?.supplyRate??1),status:t.feed?.status||null}))}:{}),...(s.crew?{crew:{operators:pct(s.crew.operators),repairParties:pct(s.crew.repairParties)},damageControl:{capacity:Number(s.damageControl.capacity.toFixed(3)),demand:Number(s.damageControl.demand.toFixed(3)),allocated:Number(s.damageControl.allocated.toFixed(3)),activeZones:s.damageControl.activeZones,status:s.damageControl.status},operationalFailure:s.operationalFailure||null}:{}),...(s.fuel?{ammoType:s.ammoType,fuel:{leak:pct(s.fuel.leak),remaining:pct(s.fuel.remaining),burning:s.fuel.burning}}:{}),integrity:pct(s.integrity),flooding:pct(s.flooding),fire:pct(s.fire),status:s.status,sinkingCause:s.sinking?.causeLabel||null,structuralFailure:s.structuralFailure||null,magazines:s.turrets.map((t,i)=>({number:i+1,detonated:t.magazine.detonated,flooded:t.magazine.flooded,heat:pct(t.magazine.heat),state:t.magazine.stateLabel||null,detonationCause:t.magazine.detonationCause||null,heatSource:t.magazine.heatSource||null,floodProgress:pct(t.magazine.floodProgress),riskMultiplier:Number((t.magazine.riskMultiplier||1).toFixed(2)),repairStatus:t.magazine.repairStatus||null,equipment:t.magazine.equipment?Object.fromEntries(Object.entries(t.magazine.equipment).map(([k,e])=>[k,{health:pct(e.health),fault:e.fault,repairProgress:pct(e.repairProgress)}])):null})),maneuver:s.maneuver?.name||'직진',...(s.combat?{combat:s.combat,maneuverDiagnostics:{trackingErrorMeters:s.maneuver?.trackingErrorMeters||0,turnRateDeg:s.maneuver?.turnRateDeg||0,turnSpeedLoss:s.maneuver?.turnSpeedLoss||0,incomingShells:s.maneuver?.incomingShells||0}}:{}),aimDisruption:pct(s.maneuver?.evasionEffect),inGunRange:s.fireSolution?.inRange??true}]))},privateContent:{version:duel.initialConfig.modelRevision==='naval-duel-21'?'duel-21':duel.initialConfig.modelRevision==='naval-duel-20'?'duel-20':rangeControlExperiment?'duel-19':fragileCombatExperiment?'duel-17':individualGunneryExperiment?'duel-16':tacticsExperiment?'duel-15':kinematicsExperiment?'duel-14':energeticDamageExperiment?'duel-13':crewDamageExperiment?'duel-12':vitalHitsExperiment?'duel-11':directFireExperiment?'duel-10':ballisticsExperiment?'duel-9':'duel-8',hasRun,battleNumber,view:saved?.view||view,zone,oceanOffset,exteriorView:saved?saved.exteriorView:exteriorView,camera:saved?.camera||cameraAnimation?.to.toArray()||camera.position.toArray(),target:saved?.target||cameraAnimation?.at.toArray()||controls.target.toArray(),aspect:saved?.aspect||camera.aspect,blastPreview:blastPreview?{ship:blastPreview.ship,turretIndex:blastPreview.turretIndex,propagation:blastPreview.propagation,elapsed:blastPreview.elapsed}:null}};lastSaved=JSON.stringify(state);if(window.openai?.setWidgetState)Promise.resolve(window.openai.setWidgetState(state)).catch(()=>{});
     }
     function restore(state){
-      if(!['duel-1','duel-2','duel-3','duel-4','duel-5','duel-6','duel-7','duel-8','duel-9','duel-10','duel-11','duel-12','duel-13','duel-14','duel-15','duel-16','duel-17','duel-18','duel-19','duel-20'].includes(state?.privateContent?.version)||JSON.stringify(state)===lastSaved)return;const b=state.modelContent?.battle,v=state.privateContent;if(!b)return;if(blastPreview)finishBlastPreview(false);
-      config={seed:Number.isFinite(b.seed)?b.seed>>>0:19440426,encounterMode:b.encounterMode==='maximum'?'maximum':'set-range',rangeKm:b.encounterMode==='maximum'?(['naval-duel-19','naval-duel-20'].includes(b.revision)?36:42):(directFireExperiment?[6,12,18,24]:[12,18,24]).includes(b.rangeKm)?b.rangeKm:18,visibility:['clear','haze','night'].includes(b.visibility)?b.visibility:'clear',accuracyScale:T.MathUtils.clamp(Number(b.accuracyScale)||1,.65,1.5),maneuverMode:b.maneuverMode==='steady'?'steady':'evasive',damageModel:['naval-duel-13','naval-duel-14','naval-duel-15','naval-duel-16','naval-duel-17','naval-duel-18','naval-duel-19','naval-duel-20'].includes(b.revision)&&energeticDamageExperiment?'energetic-crew':b.revision==='naval-duel-12'&&crewDamageExperiment?'crew-vital':b.revision==='naval-duel-11'&&vitalHitsExperiment?'vital-path':!v.hasRun&&energeticDamageExperiment?'energetic-crew':!v.hasRun&&crewDamageExperiment?'crew-vital':!v.hasRun&&vitalHitsExperiment?'vital-path':!v.hasRun||['naval-duel-7','naval-duel-8','naval-duel-9','naval-duel-10','naval-duel-11','naval-duel-12','naval-duel-13','naval-duel-14','naval-duel-15','naval-duel-16','naval-duel-17','naval-duel-18','naval-duel-19','naval-duel-20'].includes(b.revision)?'critical':b.revision==='naval-duel-6'?'cascade':b.revision==='naval-duel-5'?'equipment':'legacy',repairPolicy:['balanced','magazine-priority','none'].includes(b.repairPolicy)?b.repairPolicy:'balanced',magazineRisk:(!v.hasRun||['naval-duel-6','naval-duel-7','naval-duel-8','naval-duel-9','naval-duel-10','naval-duel-11','naval-duel-12','naval-duel-13','naval-duel-14','naval-duel-15','naval-duel-16','naval-duel-17','naval-duel-18','naval-duel-19','naval-duel-20'].includes(b.revision))&&b.magazineRisk==='high'?'high':'normal',magazinePropagation:['naval-duel-8','naval-duel-9','naval-duel-10','naval-duel-11','naval-duel-12','naval-duel-13','naval-duel-14','naval-duel-15','naval-duel-16','naval-duel-17','naval-duel-18','naval-duel-19','naval-duel-20'].includes(b.revision)&&b.magazinePropagation==='chain'?'chain':'isolated',ballisticsMode:ballisticsExperiment?'mesh-path':null,gunneryModel:directFireExperiment?'range-aware':null,kinematicsModel:['naval-duel-14','naval-duel-15','naval-duel-16','naval-duel-17','naval-duel-18','naval-duel-19','naval-duel-20'].includes(b.revision)&&kinematicsExperiment?'si-drag':null,tacticalModel:['naval-duel-15','naval-duel-16','naval-duel-17','naval-duel-18','naval-duel-19','naval-duel-20'].includes(b.revision)&&tacticsExperiment?'salvo-pressure':null,fireControlModel:['naval-duel-16','naval-duel-17','naval-duel-18','naval-duel-19','naval-duel-20'].includes(b.revision)&&individualGunneryExperiment?'per-gun':null,combatModel:['naval-duel-17','naval-duel-18','naval-duel-19','naval-duel-20'].includes(b.revision)&&fragileCombatExperiment?'fragile-maneuver':null,maneuverRevision:['naval-duel-18','naval-duel-19','naval-duel-20'].includes(b.revision)&&rangeControlExperiment?'range-control-v18':null,engagementModel:['naval-duel-19','naval-duel-20'].includes(b.revision)&&rangeControlExperiment?'mutual-fire':null,coordinateModel:b.revision==='naval-duel-20'&&rangeControlExperiment?'fixed-scale':null,rangePolicy:b.rangePolicy==='close'?'close':b.rangePolicy==='hold'?'hold':b.encounterMode==='maximum'?'close':'hold',yamatoDoctrine:['repair','balanced','attack'].includes(b.yamatoDoctrine)?b.yamatoDoctrine:'balanced',iowaDoctrine:['repair','balanced','attack'].includes(b.iowaDoctrine)?b.iowaDoctrine:'balanced',tacticalOrders:['naval-duel-15','naval-duel-16','naval-duel-17','naval-duel-18','naval-duel-19','naval-duel-20'].includes(b.revision)&&Array.isArray(b.tacticalOrders)?b.tacticalOrders:[],ballisticSeaState:['calm','moderate','rough'].includes(b.seaState)?b.seaState:'moderate',ballisticOceanOffset:Number.isFinite(v.oceanOffset)?v.oceanOffset:0,yamatoAmmo:['naval-duel-13','naval-duel-14','naval-duel-15','naval-duel-16','naval-duel-17','naval-duel-18','naval-duel-19','naval-duel-20'].includes(b.revision)&&b.yamatoAmmo==='he'?'he':'ap',iowaAmmo:['naval-duel-13','naval-duel-14','naval-duel-15','naval-duel-16','naval-duel-17','naval-duel-18','naval-duel-19','naval-duel-20'].includes(b.revision)&&b.iowaAmmo==='he'?'he':'ap'};duel=buildBattle(config);effects.clear();trajectories.clear();lastLog='';delete root.querySelector('[data-zone-history]').dataset.key;hasRun=Boolean(v.hasRun);clock=hasRun?T.MathUtils.clamp(Number(b.time)||0,0,duel.duration):0;playing=false;speed=[.25,1,4,12].includes(b.speed)?b.speed:4;focus=['whole','yamato','iowa'].includes(b.focus)?b.focus:'whole';cutaway=Boolean(b.cutaway);if(cutaway&&focus==='whole')focus='yamato';view=styles[v.view]?v.view:'angle';zone=['engine','boiler','magazineA','magazineB','magazineC'].includes(v.zone)?v.zone:'engine';battleNumber=Number(v.battleNumber)||1;
+      if(!['duel-1','duel-2','duel-3','duel-4','duel-5','duel-6','duel-7','duel-8','duel-9','duel-10','duel-11','duel-12','duel-13','duel-14','duel-15','duel-16','duel-17','duel-18','duel-19','duel-20','duel-21'].includes(state?.privateContent?.version)||JSON.stringify(state)===lastSaved)return;const b=state.modelContent?.battle,v=state.privateContent;if(!b)return;if(blastPreview)finishBlastPreview(false);
+      config={shieldMode:b.revision==='naval-duel-21'&&b.shieldMode==='energy-shell'?'energy-shell':null,seed:Number.isFinite(b.seed)?b.seed>>>0:19440426,encounterMode:b.encounterMode==='maximum'?'maximum':'set-range',rangeKm:b.encounterMode==='maximum'?(['naval-duel-19','naval-duel-20','naval-duel-21'].includes(b.revision)?36:42):(directFireExperiment?[6,12,18,24]:[12,18,24]).includes(b.rangeKm)?b.rangeKm:18,visibility:['clear','haze','night'].includes(b.visibility)?b.visibility:'clear',accuracyScale:T.MathUtils.clamp(Number(b.accuracyScale)||1,.65,1.5),maneuverMode:b.maneuverMode==='steady'?'steady':'evasive',damageModel:['naval-duel-13','naval-duel-14','naval-duel-15','naval-duel-16','naval-duel-17','naval-duel-18','naval-duel-19','naval-duel-20','naval-duel-21'].includes(b.revision)&&energeticDamageExperiment?'energetic-crew':b.revision==='naval-duel-12'&&crewDamageExperiment?'crew-vital':b.revision==='naval-duel-11'&&vitalHitsExperiment?'vital-path':!v.hasRun&&energeticDamageExperiment?'energetic-crew':!v.hasRun&&crewDamageExperiment?'crew-vital':!v.hasRun&&vitalHitsExperiment?'vital-path':!v.hasRun||['naval-duel-7','naval-duel-8','naval-duel-9','naval-duel-10','naval-duel-11','naval-duel-12','naval-duel-13','naval-duel-14','naval-duel-15','naval-duel-16','naval-duel-17','naval-duel-18','naval-duel-19','naval-duel-20','naval-duel-21'].includes(b.revision)?'critical':b.revision==='naval-duel-6'?'cascade':b.revision==='naval-duel-5'?'equipment':'legacy',repairPolicy:['balanced','magazine-priority','none'].includes(b.repairPolicy)?b.repairPolicy:'balanced',magazineRisk:(!v.hasRun||['naval-duel-6','naval-duel-7','naval-duel-8','naval-duel-9','naval-duel-10','naval-duel-11','naval-duel-12','naval-duel-13','naval-duel-14','naval-duel-15','naval-duel-16','naval-duel-17','naval-duel-18','naval-duel-19','naval-duel-20','naval-duel-21'].includes(b.revision))&&b.magazineRisk==='high'?'high':'normal',magazinePropagation:['naval-duel-8','naval-duel-9','naval-duel-10','naval-duel-11','naval-duel-12','naval-duel-13','naval-duel-14','naval-duel-15','naval-duel-16','naval-duel-17','naval-duel-18','naval-duel-19','naval-duel-20','naval-duel-21'].includes(b.revision)&&b.magazinePropagation==='chain'?'chain':'isolated',ballisticsMode:ballisticsExperiment?'mesh-path':null,gunneryModel:directFireExperiment?'range-aware':null,kinematicsModel:['naval-duel-14','naval-duel-15','naval-duel-16','naval-duel-17','naval-duel-18','naval-duel-19','naval-duel-20','naval-duel-21'].includes(b.revision)&&kinematicsExperiment?'si-drag':null,tacticalModel:['naval-duel-15','naval-duel-16','naval-duel-17','naval-duel-18','naval-duel-19','naval-duel-20','naval-duel-21'].includes(b.revision)&&tacticsExperiment?'salvo-pressure':null,fireControlModel:['naval-duel-16','naval-duel-17','naval-duel-18','naval-duel-19','naval-duel-20','naval-duel-21'].includes(b.revision)&&individualGunneryExperiment?'per-gun':null,combatModel:['naval-duel-17','naval-duel-18','naval-duel-19','naval-duel-20','naval-duel-21'].includes(b.revision)&&fragileCombatExperiment?'fragile-maneuver':null,maneuverRevision:['naval-duel-18','naval-duel-19','naval-duel-20','naval-duel-21'].includes(b.revision)&&rangeControlExperiment?'range-control-v18':null,engagementModel:['naval-duel-19','naval-duel-20','naval-duel-21'].includes(b.revision)&&rangeControlExperiment?'mutual-fire':null,coordinateModel:['naval-duel-20','naval-duel-21'].includes(b.revision)&&rangeControlExperiment?'fixed-scale':null,rangePolicy:b.rangePolicy==='close'?'close':b.rangePolicy==='hold'?'hold':b.encounterMode==='maximum'?'close':'hold',yamatoDoctrine:['repair','balanced','attack'].includes(b.yamatoDoctrine)?b.yamatoDoctrine:'balanced',iowaDoctrine:['repair','balanced','attack'].includes(b.iowaDoctrine)?b.iowaDoctrine:'balanced',tacticalOrders:['naval-duel-15','naval-duel-16','naval-duel-17','naval-duel-18','naval-duel-19','naval-duel-20','naval-duel-21'].includes(b.revision)&&Array.isArray(b.tacticalOrders)?b.tacticalOrders:[],ballisticSeaState:['calm','moderate','rough'].includes(b.seaState)?b.seaState:'moderate',ballisticOceanOffset:Number.isFinite(v.oceanOffset)?v.oceanOffset:0,yamatoAmmo:['naval-duel-13','naval-duel-14','naval-duel-15','naval-duel-16','naval-duel-17','naval-duel-18','naval-duel-19','naval-duel-20','naval-duel-21'].includes(b.revision)&&b.yamatoAmmo==='he'?'he':'ap',iowaAmmo:['naval-duel-13','naval-duel-14','naval-duel-15','naval-duel-16','naval-duel-17','naval-duel-18','naval-duel-19','naval-duel-20','naval-duel-21'].includes(b.revision)&&b.iowaAmmo==='he'?'he':'ap'};duel=buildBattle(config);effects.clear();trajectories.clear();lastLog='';delete root.querySelector('[data-zone-history]').dataset.key;hasRun=Boolean(v.hasRun);clock=hasRun?T.MathUtils.clamp(Number(b.time)||0,0,duel.duration):0;playing=false;speed=[.25,1,4,12].includes(b.speed)?b.speed:4;focus=['whole','yamato','iowa'].includes(b.focus)?b.focus:'whole';cutaway=Boolean(b.cutaway);if(cutaway&&focus==='whole')focus='yamato';view=styles[v.view]?v.view:'angle';zone=['engine','boiler','magazineA','magazineB','magazineC'].includes(v.zone)?v.zone:'engine';battleNumber=Number(v.battleNumber)||1;
       const e=v.exteriorView;exteriorView=cutaway&&e&&['whole','yamato','iowa'].includes(e.focus)&&Object.hasOwn(styles,e.view)&&['camera','target','center'].every(k=>Array.isArray(e[k])&&e[k].length===3&&e[k].every(Number.isFinite))&&Number.isFinite(e.aspect)&&e.aspect>0?{focus:e.focus,view:e.view,camera:[...e.camera],target:[...e.target],center:[...e.center],aspect:e.aspect,fleetDistance:Number.isFinite(e.fleetDistance)&&e.fleetDistance>0?e.fleetDistance:null}:null;
-      trajectoryMode=typeof b.trajectoryMode==='boolean'?b.trajectoryMode:trajectoryExperiment;trajectoryInput.checked=trajectoryMode;seaState=['calm','moderate','rough'].includes(b.seaState)?b.seaState:'moderate';oceanOffset=Number.isFinite(v.oceanOffset)?v.oceanOffset:0;seaInput.value=seaState;encounterInput.value=b.encounterMode?config.encounterMode:'maximum';rangeInput.value=String(config.encounterMode==='maximum'?18:config.rangeKm);updateEncounterControls();visibilityInput.value=config.visibility;maneuverInput.value=config.maneuverMode;rangePolicyInput.value=config.rangePolicy;repairInput.value=config.repairPolicy;magazineRiskInput.value=config.magazineRisk;propagationInput.value=config.magazinePropagation;yamatoAmmoInput.value=config.yamatoAmmo;iowaAmmoInput.value=config.iowaAmmo;accuracyInput.value=String(config.accuracyScale);root.querySelector('[data-accuracy-value]').textContent=config.accuracyScale.toFixed(2)+'×';speedInput.value=String(speed);focusInput.value=focus;cutawayInput.checked=cutaway;setSection();update();fit(false);
+      trajectoryMode=typeof b.trajectoryMode==='boolean'?b.trajectoryMode:trajectoryExperiment;trajectoryInput.checked=trajectoryMode;seaState=['calm','moderate','rough'].includes(b.seaState)?b.seaState:'moderate';oceanOffset=Number.isFinite(v.oceanOffset)?v.oceanOffset:0;seaInput.value=seaState;shieldInput.value=config.shieldMode||'none';encounterInput.value=b.encounterMode?config.encounterMode:'maximum';rangeInput.value=String(config.encounterMode==='maximum'?18:config.rangeKm);updateEncounterControls();visibilityInput.value=config.visibility;maneuverInput.value=config.maneuverMode;rangePolicyInput.value=config.rangePolicy;repairInput.value=config.repairPolicy;magazineRiskInput.value=config.magazineRisk;propagationInput.value=config.magazinePropagation;yamatoAmmoInput.value=config.yamatoAmmo;iowaAmmoInput.value=config.iowaAmmo;accuracyInput.value=String(config.accuracyScale);root.querySelector('[data-accuracy-value]').textContent=config.accuracyScale.toFixed(2)+'×';speedInput.value=String(speed);focusInput.value=focus;cutawayInput.checked=cutaway;setSection();update();fit(false);
       if(Array.isArray(v.camera)&&v.camera.length===3&&v.camera.every(Number.isFinite)&&Array.isArray(v.target)&&v.target.length===3&&v.target.every(Number.isFinite)){camera.position.fromArray(v.camera);controls.target.fromArray(v.target);if(v.aspect>camera.aspect)camera.position.sub(controls.target).multiplyScalar(v.aspect/camera.aspect).add(controls.target);controls.update();if(config.combatModel==='fragile-maneuver')resetTracking();}dirty=true;
       if(v.blastPreview&&['yamato','iowa'].includes(v.blastPreview.ship)&&[0,1,2].includes(v.blastPreview.turretIndex))showBlastPreview({...v.blastPreview,autoplay:false,restoring:true});
     }
@@ -6011,7 +6448,7 @@ function createDuelCompartments(T,built,id){
       if(!fresh){effects.clear();trajectories.clear();lastLog='';delete root.querySelector('[data-zone-history]').dataset.key;clock=0;hasRun=true;playing=true;setEnvironment();update();fit(false);persist();return;}
       const previousConfig=config,wasPlaying=playing,nextOceanOffset=oceanOffset+clock,seeds=new Uint32Array(1);
       if(window.crypto?.getRandomValues)window.crypto.getRandomValues(seeds);else seeds[0]=(Date.now()+battleNumber*2654435761)>>>0;
-      const nextConfig={seed:seeds[0],encounterMode:encounterInput.value,rangeKm:encounterInput.value==='maximum'?36:Number(rangeInput.value),visibility:visibilityInput.value,accuracyScale:Number(accuracyInput.value),maneuverMode:maneuverInput.value,damageModel:energeticDamageExperiment?'energetic-crew':crewDamageExperiment?'crew-vital':vitalHitsExperiment?'vital-path':'critical',repairPolicy:repairInput.value,magazineRisk:magazineRiskInput.value,magazinePropagation:propagationInput.value,ballisticsMode:ballisticsExperiment?'mesh-path':null,gunneryModel:directFireExperiment?'range-aware':null,kinematicsModel:kinematicsExperiment?'si-drag':null,tacticalModel:tacticsExperiment?'salvo-pressure':null,fireControlModel:individualGunneryExperiment?'per-gun':null,combatModel:fragileCombatExperiment?'fragile-maneuver':null,maneuverRevision:rangeControlExperiment?'range-control-v18':null,engagementModel:rangeControlExperiment?'mutual-fire':null,coordinateModel:rangeControlExperiment?'fixed-scale':null,rangePolicy:rangePolicyInput.value,yamatoDoctrine:doctrineInputs.yamato.value,iowaDoctrine:doctrineInputs.iowa.value,tacticalOrders:[],ballisticSeaState:seaState,ballisticOceanOffset:nextOceanOffset,yamatoAmmo:yamatoAmmoInput.value,iowaAmmo:iowaAmmoInput.value};
+      const nextConfig={shieldMode:shieldInput.value==='energy-shell'&&rangeControlExperiment?'energy-shell':null,seed:seeds[0],encounterMode:encounterInput.value,rangeKm:encounterInput.value==='maximum'?36:Number(rangeInput.value),visibility:visibilityInput.value,accuracyScale:Number(accuracyInput.value),maneuverMode:maneuverInput.value,damageModel:energeticDamageExperiment?'energetic-crew':crewDamageExperiment?'crew-vital':vitalHitsExperiment?'vital-path':'critical',repairPolicy:repairInput.value,magazineRisk:magazineRiskInput.value,magazinePropagation:propagationInput.value,ballisticsMode:ballisticsExperiment?'mesh-path':null,gunneryModel:directFireExperiment?'range-aware':null,kinematicsModel:kinematicsExperiment?'si-drag':null,tacticalModel:tacticsExperiment?'salvo-pressure':null,fireControlModel:individualGunneryExperiment?'per-gun':null,combatModel:fragileCombatExperiment?'fragile-maneuver':null,maneuverRevision:rangeControlExperiment?'range-control-v18':null,engagementModel:rangeControlExperiment?'mutual-fire':null,coordinateModel:rangeControlExperiment?'fixed-scale':null,rangePolicy:rangePolicyInput.value,yamatoDoctrine:doctrineInputs.yamato.value,iowaDoctrine:doctrineInputs.iowa.value,tacticalOrders:[],ballisticSeaState:seaState,ballisticOceanOffset:nextOceanOffset,yamatoAmmo:yamatoAmmoInput.value,iowaAmmo:iowaAmmoInput.value};
       playing=false;battleBusy=true;battleError='';loading.textContent='새 교전을 계산 중입니다. 준비되면 재생을 시작합니다.';loading.hidden=false;
       root.querySelectorAll('.viz-controls').forEach(control=>control.inert=true);updateStatus();
       await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
@@ -6024,6 +6461,7 @@ function createDuelCompartments(T,built,id){
     }
     start.addEventListener('click',()=>begin(true));replay.addEventListener('click',()=>begin(false));pause.addEventListener('click',()=>{if(doctrineBusy||battleBusy)return;if(blastPreview&&blastPreview.elapsed>=24){blastPreview.elapsed=0;effects.clear();playing=true;update();fit(false);}else{playing=!playing;updateStatus();}persist();});speedInput.addEventListener('change',()=>{speed=Number(speedInput.value);persist();});
     for(const [id,input] of Object.entries(doctrineInputs))input.addEventListener('change',()=>issueDoctrine(id,input.value));
+    shieldReplayButton.addEventListener('click',()=>showShieldAction(true));
     blastButton.addEventListener('click',()=>{if(blastPreview)finishBlastPreview();else showBlastPreview();});
     encounterInput.addEventListener('change',updateEncounterControls);
     accuracyInput.addEventListener('input',()=>{root.querySelector('[data-accuracy-value]').textContent=Number(accuracyInput.value).toFixed(2)+'×';});

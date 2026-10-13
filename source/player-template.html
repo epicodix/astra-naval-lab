@@ -2147,7 +2147,7 @@ __ASTRA_SIMULATION_FRAGMENT__
   let viewportHeight = globalThis.innerHeight;
   const locationParams = new URLSearchParams(globalThis.location.search);
   const preset = locationParams.get("preset");
-  const publicMode = ["preview", "duel", "battle", "maximum", "blast", "he"].includes(preset) ? preset : "duel";
+  const publicMode = ["preview", "duel", "battle", "maximum", "blast", "he", "shield"].includes(preset) ? preset : "duel";
   const freshEntry = locationParams.get("fresh") === "1";
   const stateParams = new URLSearchParams(locationParams);
   stateParams.delete("lang");
@@ -2385,8 +2385,10 @@ __ASTRA_SIMULATION_FRAGMENT__
           ? (battle.rangePolicy === "close" ? (english ? "Close range" : "접근 교전") : (english ? "Hold range" : "거리 유지")) + targetLabel
           : (english ? "Previous route model" : "기존 항로");
         note.textContent = english
-          ? `Current battle · Starting range ${rangeLabel} · ${policy}. Resume current battle continues this battle. New battle with selected settings applies your pending changes.`
-          : `현재 교전 · 시작 거리 ${rangeLabel} · ${policy}. 현재 교전 계속은 이 교전을 이어갑니다. 변경한 조건은 선택한 설정으로 새 교전으로 적용합니다.`;
+          ? `Current battle · Starting range ${rangeLabel} · ${battle.shieldMode === "energy-shell" ? "SF shield · " : ""}${policy}. Resume current battle continues this battle. New battle with selected settings applies your pending changes.`
+          : `현재 교전 · 시작 거리 ${rangeLabel} · ${battle.shieldMode === "energy-shell" ? "SF 실드 · " : ""}${policy}. 현재 교전 계속은 이 교전을 이어갑니다. 변경한 조건은 선택한 설정으로 새 교전으로 적용합니다.`;
+      } else if (publicMode === "shield") {
+        note.textContent = english ? "SF shields · A real shield collapse in the battle, at 0.25× speed. Select Resume current battle to watch the shell airburst." : "SF 실드 · 실제 교전에서 발생한 실드 붕괴 직전, 0.25× 슬로모션. 현재 교전 계속을 누르면 공중 폭발을 볼 수 있습니다.";
       } else if (publicMode === "he") {
         note.textContent = english ? "6 km engagement · Both ships use high-explosive shells. Select Resume current battle to begin, or change each ship’s ammunition in the battle settings." : "6 km 교전 · 양측 고폭탄. 현재 교전 계속을 누르거나 함선별 탄종을 바꿔 비교해보세요.";
       } else if (publicMode === "duel" || publicMode === "battle" || publicMode === "maximum") {

@@ -29,10 +29,10 @@ public_startup = """    if(publicMode==='preview'){
       clock=0;focus='yamato';trajectoryMode=false;focusInput.value=focus;trajectoryInput.checked=false;
     }
     const publicSavedBattle=window.openai?.widgetState;
-    const publicHasSavedBattle=['duel-1','duel-2','duel-3','duel-4','duel-5','duel-6','duel-7','duel-8','duel-9','duel-10','duel-11','duel-12','duel-13','duel-14','duel-15','duel-16','duel-17','duel-18','duel-19','duel-20'].includes(publicSavedBattle?.privateContent?.version)&&Number.isFinite(publicSavedBattle?.modelContent?.battle?.seed);
-    if((publicMode==='duel'||publicMode==='battle'||publicMode==='maximum'||publicMode==='he')&&!publicHasSavedBattle){
-      config={...config,seed:19440426,encounterMode:publicMode==='maximum'?'maximum':'set-range',rangeKm:publicMode==='maximum'?36:publicMode==='duel'?24:6,yamatoAmmo:publicMode==='he'?'he':'ap',iowaAmmo:publicMode==='he'?'he':'ap'};
-      duel=buildBattle(config);clock=0;hasRun=true;speed=publicMode==='he'?1:4;focus='whole';speedInput.value=String(speed);focusInput.value=focus;yamatoAmmoInput.value=config.yamatoAmmo;iowaAmmoInput.value=config.iowaAmmo;
+    const publicHasSavedBattle=['duel-1','duel-2','duel-3','duel-4','duel-5','duel-6','duel-7','duel-8','duel-9','duel-10','duel-11','duel-12','duel-13','duel-14','duel-15','duel-16','duel-17','duel-18','duel-19','duel-20','duel-21'].includes(publicSavedBattle?.privateContent?.version)&&Number.isFinite(publicSavedBattle?.modelContent?.battle?.seed);
+    if((publicMode==='duel'||publicMode==='battle'||publicMode==='maximum'||publicMode==='he'||publicMode==='shield')&&!publicHasSavedBattle){
+      config={...config,shieldMode:publicMode==='shield'?'energy-shell':null,seed:19440426,encounterMode:publicMode==='maximum'?'maximum':'set-range',rangeKm:publicMode==='maximum'?36:publicMode==='duel'?24:6,yamatoAmmo:(publicMode==='he'||publicMode==='shield')?'he':'ap',iowaAmmo:(publicMode==='he'||publicMode==='shield')?'he':'ap'};
+      duel=buildBattle(config);clock=0;hasRun=true;speed=publicMode==='shield'?.25:publicMode==='he'?1:4;shieldInput.value=config.shieldMode||'none';focus='whole';speedInput.value=String(speed);focusInput.value=focus;yamatoAmmoInput.value=config.yamatoAmmo;iowaAmmoInput.value=config.iowaAmmo;
     }
 """
 if fragment.count(marker) != 1:
@@ -50,7 +50,7 @@ replace_once("playing?'일시정지':'계속 재생'", "playing?'일시정지':b
 replace_once('data-replay disabled>같은 교전 다시 보기</button>', 'data-replay disabled>현재 교전 다시보기</button>')
 replace_once("      updateTactics();\n    }\n    function updateTactics(){", "      updateTactics();\n      refreshPublicControls();\n    }\n    function updateTactics(){")
 replace_once("if(v.blastPreview&&['yamato','iowa'].includes(v.blastPreview.ship)&&[0,1,2].includes(v.blastPreview.turretIndex))showBlastPreview({...v.blastPreview,autoplay:false,restoring:true});", "if(v.blastPreview&&['yamato','iowa'].includes(v.blastPreview.ship)&&[0,1,2].includes(v.blastPreview.turretIndex))showBlastPreview({...v.blastPreview,autoplay:false,restoring:true});\n      restorePublicDraft(v.publicDraft);")
-replace_once("restore(window.openai?.widgetState);window.addEventListener('openai:set_globals'", "restore(window.openai?.widgetState);if(publicMode!=='preview')persist();window.addEventListener('openai:set_globals'")
+replace_once("restore(window.openai?.widgetState);window.addEventListener('openai:set_globals'", "restore(window.openai?.widgetState);if(publicMode==='shield'&&!publicHasSavedBattle)showShieldAction(false);if(publicMode!=='preview')persist();window.addEventListener('openai:set_globals'")
 replace_once("update(false);});loading.hidden=true;", "update(false);});loading.hidden=true;root.dataset.publicReady='true';root.querySelectorAll('.viz-controls').forEach(control=>control.inert=false);")
 # The build adds the public controls and display layer to the simulation source.
 fragment += """
