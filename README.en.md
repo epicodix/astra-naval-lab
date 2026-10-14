@@ -1,5 +1,7 @@
 # ASTRA NAVAL LAB
 
+Aircraft and flight design has a separate [Aircraft design lab](https://epicodix.github.io/astra-naval-lab/modules/air-design/?lang=en), with its own page, models and motion module. See its [module boundaries and first-stage scope](modules/air-design/README.md).
+
 **A browser-based 3D Yamato vs Iowa battleship simulator built in collaboration with GPT Astra.**
 
 [Play in English](https://epicodix.github.io/astra-naval-lab/en.html) · [Watch a magazine explosion](https://epicodix.github.io/astra-naval-lab/simulator.html?preset=blast&lang=en) · [한국어 README](README.md)

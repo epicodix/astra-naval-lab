@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#111b24">
+  <meta name="description" content="가상 뇌격기의 기체 디테일과 비행 자세를 살펴보는 항공 설계실.">
+  <title>항공 설계실 | ASTRA NAVAL LAB</title>
+  <link rel="icon" href="../../assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#air-design" data-i18n="skip">설계실로 이동</a>
+  <header class="masthead page-width">
+    <a class="brand" href="../../" data-home>ASTRA <span>NAVAL LAB</span></a>
+    <nav class="nav-actions" aria-label="설계실 메뉴" data-i18n-aria="navigation">
+      <a class="home-link" href="../../" data-home data-i18n="home">전함 실험실로</a>
+      <div class="language-switch" role="group" aria-label="언어 선택" data-i18n-aria="language">
+        <button type="button" data-language="ko" lang="ko" aria-pressed="true">한국어</button>
+        <button type="button" data-language="en" lang="en" aria-pressed="false">English</button>
+      </div>
+    </nav>
+  </header>
+  <main id="air-design" class="page-width" data-ready="false">
+    <div class="page-heading">
+      <div><p class="eyebrow">AIRFRAME / PELAGIC T-40</p><h1 data-i18n="title">항공 설계실</h1><p class="intro" data-i18n="intro">가상 기체의 디테일과 비행 자세를 살펴보세요.</p></div>
+      <span class="study-tag" data-i18n="fictional">1940년대 풍 가상 뇌격기</span>
+    </div>
+    <div class="workspace">
+      <section class="viewer-card" aria-label="기체 보기" data-i18n-aria="viewer">
+        <div class="viewer-tools" data-controls inert>
+          <div class="mode-switch" role="group" aria-label="보기 선택" data-i18n-aria="viewMode">
+            <button type="button" data-mode="model" aria-pressed="true" data-i18n="model">기체 살펴보기</button>
+            <button type="button" data-mode="flight" aria-pressed="false" data-i18n="flight">비행 관찰</button>
+          </div>
+          <button class="quiet-button" type="button" data-fit data-i18n="fit">전체 구도</button>
+        </div>
+        <div class="camera-tools" data-controls inert>
+          <label class="camera-select"><span class="sr-only" data-i18n="camera">카메라</span><select data-camera-mode><option value="orbit" data-i18n="orbit">자유 관찰</option><option value="track" data-i18n="track">기체 추적</option></select></label>
+          <div class="angle-switch" role="group" aria-label="카메라 방향" data-i18n-aria="cameraAngles">
+            <button type="button" data-angle="angle" aria-pressed="true" data-i18n="angle">사선</button>
+            <button type="button" data-angle="side" aria-pressed="false" data-i18n="side">측면</button>
+            <button type="button" data-angle="top" aria-pressed="false" data-i18n="top">상부</button>
+          </div>
+        </div>
+        <div class="scene" data-scene role="img" aria-label="가상 뇌격기의 3D 모습" data-i18n-aria="scene">
+          <div class="scene-loading" data-loading><span class="loading-ring" aria-hidden="true"></span><p data-loading-text data-i18n="loading">기체를 준비하는 중…</p><button class="button" type="button" data-retry hidden data-i18n="retry">다시 열기</button></div>
+          <div class="scene-topline"><span class="scene-badge" data-view-label>기체 외관</span><span class="scene-name">PELAGIC T-40</span></div>
+          <p class="scene-hint" data-scene-hint>드래그로 회전 · 휠로 확대</p>
+        </div>
+        <div class="playback" data-controls inert>
+          <div class="playback-row"><button class="play-button" type="button" data-play aria-pressed="false" data-i18n="play">재생</button><button class="quiet-button" type="button" data-reset data-i18n="restart">처음으로</button><output class="time-output" data-time-output for="air-time">00:00.0</output></div>
+          <label class="sr-only" for="air-time" data-i18n="timeline">관찰 시간</label><input id="air-time" data-time type="range" min="0" max="120" step="0.1" value="0">
+        </div>
+      </section>
+      <aside class="sidebar">
+        <section class="panel" data-model-panel data-controls inert>
+          <div class="panel-heading"><h2 data-i18n="inspect">부위 살펴보기</h2><span class="panel-caption" data-i18n="inspectHint">선택하면 가까이 봅니다</span></div>
+          <div class="part-grid" role="group" aria-label="기체 부위" data-i18n-aria="parts">
+            <button type="button" data-part="whole" aria-pressed="true" data-i18n="whole">기체 전체</button><button type="button" data-part="body" aria-pressed="false" data-i18n="fuselage">동체</button><button type="button" data-part="wings" aria-pressed="false" data-i18n="wings">날개</button><button type="button" data-part="engine" aria-pressed="false" data-i18n="engine">엔진 · 프로펠러</button><button type="button" data-part="cockpit" aria-pressed="false" data-i18n="cockpit">조종석</button><button type="button" data-part="tail" aria-pressed="false" data-i18n="tail">꼬리날개</button><button type="button" data-part="torpedo" aria-pressed="false" data-i18n="torpedo">어뢰 · 장착대</button><button type="button" data-part="gear" aria-pressed="false" data-i18n="gear">착륙장치</button>
+          </div>
+        </section>
+        <section class="panel" data-flight-panel data-controls inert hidden>
+          <div class="panel-heading"><h2 data-i18n="flightDesign">비행 설정</h2></div>
+          <label class="field"><span data-i18n="formation">대형</span><select data-formation><option value="solo" data-i18n="solo">단독 비행</option><option value="vee" data-i18n="vee">3기 V자 편대</option></select></label>
+          <label class="field"><span data-i18n="path">항로</span><select data-path><option value="level" data-i18n="level">수평 비행</option><option value="turn" data-i18n="turn">선회 비행</option><option value="approach" data-i18n="approach">낮게 접근</option></select></label>
+          <details class="flight-details"><summary data-i18n="flightOptions">속도 · 고도 · 기울기</summary>
+            <label class="range-field" for="air-speed"><span data-i18n="referenceSpeed">기준 속도</span><output data-speed-output for="air-speed">90 m/s</output><input id="air-speed" data-speed type="range" min="60" max="140" step="1" value="90"></label>
+            <label class="range-field" for="air-altitude"><span data-i18n="altitude">고도</span><output data-altitude-output for="air-altitude">120 m</output><input id="air-altitude" data-altitude type="range" min="30" max="600" step="10" value="120"></label>
+            <label class="range-field" for="air-bank"><span data-i18n="referenceBank">리더 선회 기울기</span><output data-bank-output for="air-bank">25°</output><input id="air-bank" data-bank type="range" min="0" max="45" step="1" value="25"></label>
+          </details>
+        </section>
+        <section class="panel equipment-panel" data-controls inert>
+          <label class="check-field"><input type="checkbox" data-gear checked><span data-i18n="gearDown">착륙장치 펼치기</span></label>
+          <label class="check-field" data-route-field hidden><input type="checkbox" data-route checked><span data-i18n="route">항로 표시</span></label>
+        </section>
+        <section class="panel readout-panel">
+          <div class="panel-heading"><h2 data-readout-title>기체 제원</h2><span class="panel-caption" data-i18n="study">가상 설계</span></div>
+          <dl class="readout-grid" data-model-readout><div><dt data-i18n="length">전장</dt><dd data-length>12.08 m</dd></div><div><dt data-i18n="span">날개 폭</dt><dd data-span>15 m</dd></div><div><dt data-i18n="modelParts">모델 부품</dt><dd data-part-count>—</dd></div><div><dt data-i18n="selected">관찰 부위</dt><dd data-selected-part>기체 전체</dd></div></dl>
+          <dl class="readout-grid" data-flight-readout hidden><div><dt data-i18n="airspeed">비행 속도</dt><dd data-actual-speed>90.0 m/s</dd></div><div><dt data-i18n="actualAltitude">현재 고도</dt><dd data-actual-altitude>120 m</dd></div><div><dt data-i18n="bank">기울기</dt><dd data-actual-bank>0°</dd></div><div><dt data-i18n="aircraftCount">비행 기체</dt><dd data-aircraft-count>1</dd></div></dl>
+        </section>
+      </aside>
+    </div>
+    <p class="page-note" data-i18n="note">실제 기종의 복제 모델이 아닌, 형태와 움직임을 살펴보는 가상 설계입니다.</p>
+  </main>
+  <footer class="page-width footer"><span>ASTRA NAVAL LAB <span>/ AIRCRAFT STUDIO</span></span><span>Built with GPT Astra</span></footer>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <script type="module" src="scene.js"></script>
+</body>
+</html>

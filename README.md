@@ -1,5 +1,7 @@
 # ASTRA NAVAL LAB
 
+별도 기체·비행 디자인은 [항공 설계실](https://epicodix.github.io/astra-naval-lab/modules/air-design/?lang=ko)에서 진행합니다. 함포전과 독립된 화면·기체 모델·비행 모듈이며, [모듈 경계와 첫 단계 범위](modules/air-design/README.md)를 따릅니다.
+
 **Yamato vs Iowa Battleship Simulator — built in collaboration with GPT Astra.**
 
 [Play in English](https://epicodix.github.io/astra-naval-lab/en.html) · [English README](README.en.md) · [한국어 웹사이트](https://epicodix.github.io/astra-naval-lab/)
