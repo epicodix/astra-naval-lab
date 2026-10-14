@@ -43,6 +43,8 @@ The **Observation camera** selector stays directly above the scene, including on
 
 Scrolling or using **Zoom − / Zoom +** during an automatic view keeps ship tracking active. **Reset view** restores the selected mode’s default zoom. An **Opponent close-up** appears at the top right; click it to observe that ship. This separate camera renders the same battle’s actual ship and effects at the current time, without changing model size or engagement range.
 
+Rotating in free orbit retains fog visibility for the engagement range. When a distant ship is less than 5 pixels tall, a 3-pixel contact at its actual upper silhouette helps it remain identifiable. The contact uses depth testing and fog, so foreground hulls and water can occlude it. It is hidden outside the view, after sinking, and in cutaways or explosion previews. Ship scale and physical checks remain unchanged.
+
 Main-gun launches also disturb the nearby water with an airblast effect. Low mist, foam and small outward ripples start at the actual launch time and muzzle direction, then fade; seeking reconstructs their positions and ages. Local water displacement and reflection changes are visual approximations, rather than a hydrodynamic pressure solver. They do not affect ship wave motion, ballistics or collision checks.
 
 Reference muzzle speeds: Yamato AP **780 m/s**, common shell (HE approximation) **805 m/s**; Iowa AP **762 m/s**, HC (HE) **819.9 m/s**. Sources: contemporary US Navy [Yamato report O-45(N), pp. 16–17](https://www.fischer-tropsch.org/primary_documents/gvt_reports/USNAVY/USNTMJ%20Reports/USNTMJ-200F-0384-0445%20Report%20O-45%20N.pdf) and [OP1188 firing tables, pp. 61–62](https://www.eugeneleeslover.com/ENGINEERING/OP1188/OP1188_Abridged_Range_Tables_1944.pdf).
