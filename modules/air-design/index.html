@@ -32,11 +32,12 @@
           <div class="mode-switch" role="group" aria-label="보기 선택" data-i18n-aria="viewMode">
             <button type="button" data-mode="model" aria-pressed="true" data-i18n="model">기체 살펴보기</button>
             <button type="button" data-mode="flight" aria-pressed="false" data-i18n="flight">비행 관찰</button>
+            <button type="button" data-mode="torpedo" aria-pressed="false" data-i18n="trial">어뢰 시험</button>
           </div>
           <button class="quiet-button" type="button" data-fit data-i18n="fit">전체 구도</button>
         </div>
         <div class="camera-tools" data-controls inert>
-          <label class="camera-select"><span class="sr-only" data-i18n="camera">카메라</span><select data-camera-mode><option value="orbit" data-i18n="orbit">자유 관찰</option><option value="track" data-i18n="track">기체 추적</option></select></label>
+          <label class="camera-select"><span class="sr-only" data-i18n="camera">카메라</span><select data-camera-mode><option value="orbit" data-i18n="orbit">자유 관찰</option><option value="track" data-i18n="track">기체 추적</option><option value="auto" data-trial-camera data-i18n="autoCamera" hidden>자동 연출</option><option value="torpedo" data-trial-camera data-i18n="torpedoCamera" hidden>어뢰 근접</option><option value="target" data-trial-camera data-i18n="targetCamera" hidden>표적 관찰</option><option value="overview" data-trial-camera data-i18n="overviewCamera" hidden>전체 항로</option></select></label>
           <div class="angle-switch" role="group" aria-label="카메라 방향" data-i18n-aria="cameraAngles">
             <button type="button" data-angle="angle" aria-pressed="true" data-i18n="angle">사선</button>
             <button type="button" data-angle="side" aria-pressed="false" data-i18n="side">측면</button>
@@ -46,10 +47,11 @@
         <div class="scene" data-scene role="img" aria-label="가상 뇌격기의 3D 모습" data-i18n-aria="scene">
           <div class="scene-loading" data-loading><span class="loading-ring" aria-hidden="true"></span><p data-loading-text data-i18n="loading">기체를 준비하는 중…</p><button class="button" type="button" data-retry hidden data-i18n="retry">다시 열기</button></div>
           <div class="scene-topline"><span class="scene-badge" data-view-label>기체 외관</span><span class="scene-name">PELAGIC T-40</span></div>
+          <div class="trial-overlay" data-trial-overlay hidden><strong data-trial-phase>접근</strong><span data-trial-status></span></div>
           <p class="scene-hint" data-scene-hint>드래그로 회전 · 휠로 확대</p>
         </div>
         <div class="playback" data-controls inert>
-          <div class="playback-row"><button class="play-button" type="button" data-play aria-pressed="false" data-i18n="play">재생</button><button class="quiet-button" type="button" data-reset data-i18n="restart">처음으로</button><output class="time-output" data-time-output for="air-time">00:00.0</output></div>
+          <div class="playback-row"><button class="play-button" type="button" data-play aria-pressed="false" data-i18n="play">재생</button><button class="quiet-button" type="button" data-reset data-i18n="restart">처음으로</button><label class="playback-speed" data-trial-speed hidden><span class="sr-only" data-i18n="playbackSpeed">재생 속도</span><select data-rate aria-label="재생 속도" data-i18n-aria="playbackSpeed"><option value="0.25">0.25×</option><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option></select></label><output class="time-output" data-time-output for="air-time">00:00.0</output></div>
           <label class="sr-only" for="air-time" data-i18n="timeline">관찰 시간</label><input id="air-time" data-time type="range" min="0" max="120" step="0.1" value="0">
         </div>
       </section>
@@ -70,14 +72,25 @@
             <label class="range-field" for="air-bank"><span data-i18n="referenceBank">리더 선회 기울기</span><output data-bank-output for="air-bank">25°</output><input id="air-bank" data-bank type="range" min="0" max="45" step="1" value="25"></label>
           </details>
         </section>
+        <section class="panel" data-trial-panel data-controls inert hidden>
+          <div class="panel-heading"><h2 data-i18n="trialTitle">투하 → 입수 → 항주 → 명중</h2></div>
+          <p class="trial-description" data-i18n="trialDescription">저공에서 분리한 어뢰가 수중으로 진입해 고정 시험 표적을 향해 나아갑니다.</p>
+          <button class="button trial-start" type="button" data-launch data-i18n="launch">투하부터 다시 보기</button>
+          <div class="phase-grid" role="group" data-i18n-aria="jumpToPhase" aria-label="장면 바로 보기">
+            <button type="button" data-phase="release" data-i18n="release">투하</button><button type="button" data-phase="entry" data-i18n="waterEntry">입수</button><button type="button" data-phase="running" data-i18n="running">수중 항주</button><button type="button" data-phase="hit" data-i18n="hit">명중</button>
+          </div>
+          <label class="check-field"><input type="checkbox" data-clear-water checked><span data-i18n="clearWater">수중 관찰용 투명 수면</span></label>
+          <p class="trial-note" data-i18n="trialNote">가상 어뢰 시험 · 미터/초 기준 · 직진 항주</p>
+        </section>
         <section class="panel equipment-panel" data-controls inert>
-          <label class="check-field"><input type="checkbox" data-gear checked><span data-i18n="gearDown">착륙장치 펼치기</span></label>
+          <label class="check-field" data-gear-field><input type="checkbox" data-gear checked><span data-i18n="gearDown">착륙장치 펼치기</span></label>
           <label class="check-field" data-route-field hidden><input type="checkbox" data-route checked><span data-i18n="route">항로 표시</span></label>
         </section>
         <section class="panel readout-panel">
           <div class="panel-heading"><h2 data-readout-title>기체 제원</h2><span class="panel-caption" data-i18n="study">가상 설계</span></div>
           <dl class="readout-grid" data-model-readout><div><dt data-i18n="length">전장</dt><dd data-length>12.08 m</dd></div><div><dt data-i18n="span">날개 폭</dt><dd data-span>15 m</dd></div><div><dt data-i18n="modelParts">모델 부품</dt><dd data-part-count>—</dd></div><div><dt data-i18n="selected">관찰 부위</dt><dd data-selected-part>기체 전체</dd></div></dl>
           <dl class="readout-grid" data-flight-readout hidden><div><dt data-i18n="airspeed">비행 속도</dt><dd data-actual-speed>90.0 m/s</dd></div><div><dt data-i18n="actualAltitude">현재 고도</dt><dd data-actual-altitude>120 m</dd></div><div><dt data-i18n="bank">기울기</dt><dd data-actual-bank>0°</dd></div><div><dt data-i18n="aircraftCount">비행 기체</dt><dd data-aircraft-count>1</dd></div></dl>
+          <dl class="readout-grid" data-trial-readout hidden><div><dt data-i18n="phase">진행 단계</dt><dd data-phase-readout>접근</dd></div><div><dt data-i18n="torpedoSpeed">어뢰 속도</dt><dd data-torpedo-speed>—</dd></div><div><dt data-i18n="depth">수심</dt><dd data-torpedo-depth>—</dd></div><div><dt data-i18n="distanceToTarget">표적까지</dt><dd data-target-distance>—</dd></div></dl>
         </section>
       </aside>
     </div>

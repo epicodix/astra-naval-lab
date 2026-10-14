@@ -1,6 +1,8 @@
 // A fictional 1940s naval aircraft study. All geometry is in metres;
 // +X points through the nose, +Y is up, and +Z is the starboard wing.
 // No naval simulation, flight solver, asset loader or renderer is imported.
+import { createTorpedo } from './torpedo-model.js';
+
 export function createAircraft(T, options = {}) {
   const TAU = Math.PI * 2;
   const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
@@ -264,23 +266,12 @@ export function createAircraft(T, options = {}) {
   }
   rod(deployedGear, 'Tailwheel fork', [-5.14, -.03, 0], [-5.33, -.72, 0], .029, metal);
   wheelAssembly(deployedGear, 'Tailwheel', [-5.34, -.87, 0], .17, .095);
-  // The torpedo is a fictional visual store, with rounded warhead, narrow
-  // tail, contra-rotating screw details and a four-fin stabilising cage.
-  torpedo.position.y = -1.27;
-  const torpedoProfile = [[-2.66, .035, .035, 0], [-2.48, .10, .10, 0], [-2.13, .175, .175, 0], [-1.55, .219, .219, 0], [.95, .224, .224, 0], [1.55, .22, .22, 0], [1.92, .16, .16, 0], [2.19, .045, .045, 0], [2.22, .008, .008, 0]];
-  const torpMetal = material('Brushed torpedo steel', 0x818f92, .72, .46), torpWarhead = material('Dark warhead shell', 0x56656b, .62, .57);
-  mesh(torpedo, 'Rounded torpedo body', skinGeometry(torpedoProfile, 64, 32, false), torpMetal);
-  mesh(torpedo, 'Torpedo warhead shell', skinGeometry([[.95, .226, .226, 0], [1.55, .222, .222, 0], [1.92, .162, .162, 0], [2.19, .046, .046, 0], [2.22, .009, .009, 0]], 24, 32, false), torpWarhead);
-  for (const x of [-1.53, -.40, .92, 1.54]) ring(torpedo, 'Torpedo casing join ' + x, .225, .008, [x, 0, 0], darkMetal);
-  for (let i = 0; i < 4; i++) {
-    const shape = new T.Shape(); shape.moveTo(-2.38, .095); shape.lineTo(-2.78, .36); shape.lineTo(-1.98, .36); shape.lineTo(-1.73, .17); shape.closePath();
-    const fin = mesh(torpedo, 'Torpedo tail fin ' + (i + 1), new T.ExtrudeGeometry(shape, { depth: .022, bevelEnabled: false, curveSegments: 2 }), darkMetal); fin.position.z = -.011; fin.rotation.x = i * Math.PI / 2;
-    rod(torpedo, 'Tail cage brace ' + (i + 1), [-2.68, Math.cos(i * Math.PI / 2) * .35, Math.sin(i * Math.PI / 2) * .35], [-1.96, Math.cos(i * Math.PI / 2) * .35, Math.sin(i * Math.PI / 2) * .35], .009, metal, 6);
-  }
-  const screwMaterial = material('Torpedo bronze screws', 0x978a69, .76, .47);
-  for (let r = 0; r < 2; r++) for (let i = 0; i < 4; i++) {
-    const blade = mesh(torpedo, 'Torpedo screw row ' + (r + 1) + ' blade ' + (i + 1), new T.SphereGeometry(.10, 10, 6), screwMaterial, [-2.52 - r * .10, Math.cos(TAU * i / 4 + r * .35) * .105, Math.sin(TAU * i / 4 + r * .35) * .105]); blade.scale.set(.22, 1, .36); blade.rotation.x = TAU * i / 4 + r * .35;
-  }
+  // The hideable store uses the same independent asset as a released torpedo.
+  // Its local origin is the release hardpoint; straps and rack stay aboard.
+  const hardpointLocal = Object.freeze([0, -1.27, 0]);
+  torpedo.position.fromArray(hardpointLocal);
+  const torpedoModel = createTorpedo(T, { batch: options.batch !== false });
+  const mountedTorpedo = torpedoModel.group; mountedTorpedo.name = 'Mounted bare torpedo'; torpedo.add(mountedTorpedo);
   for (const x of [-.88, 1.05]) {
     ring(torpedo, 'Store suspension strap ' + x, .235, .023, [x, 0, 0], darkMetal);
     for (const z of [-.15, .15]) rod(torpedo, 'Belly rack support ' + x + ' ' + z, [x, .205, z], [x, .48, z], .026, darkMetal);
@@ -299,7 +290,12 @@ export function createAircraft(T, options = {}) {
     group.userData.gear = gearDeployed ? 'deployed' : 'retracted'; return gearDeployed;
   }
   setGear(options.gear === 'deployed' || options.gear === true || options.gearDeployed === true);
-  torpedo.visible = options.torpedo !== false;
+  function setTorpedoPresent(present) {
+    mountedTorpedo.visible = !!present;
+    group.userData.torpedoPresent = mountedTorpedo.visible;
+    return mountedTorpedo.visible;
+  }
+  setTorpedoPresent(options.torpedo !== false);
   const rpmOption = Number(options.propellerRPM), propellerRPM = Number.isFinite(rpmOption) ? clamp(rpmOption, 0, 2400) : 960;
   function animate(time) {
     const t = Number.isFinite(Number(time)) ? Number(time) : 0;
@@ -353,7 +349,7 @@ export function createAircraft(T, options = {}) {
     }
   }
   if (options.batch !== false) {
-    const skip = new Set([propeller, deployedGear, ...doors.map(d => d.object)]);
+    const skip = new Set([propeller, deployedGear, mountedTorpedo, ...doors.map(d => d.object)]);
     for (const p of Object.values(parts)) batchStatic(p, skip);
     batchStatic(deployedGear);
   }
@@ -363,5 +359,5 @@ export function createAircraft(T, options = {}) {
   group.traverse(o => { if (o.isMesh || o.isLine) drawCallEstimate++; if (o.isMesh) { meshCount++; const g = o.geometry; vertexCount += g.attributes.position.count * (o.isInstancedMesh ? o.count : 1); triangleCount += (g.index ? g.index.count : g.attributes.position.count) / 3 * (o.isInstancedMesh ? o.count : 1); } });
   const bounds = { min: box.min.toArray(), max: box.max.toArray(), size: size.toArray(), center: centre.toArray() };
   const spec = Object.freeze({ name: 'Pelagic T-40', category: 'Fictional 1940s naval torpedo aircraft', historicalReplica: false, units: 'metres', coordinates: { nose: '+X', up: '+Y', starboard: '+Z' }, lengthMeters: Number(size.x.toFixed(3)), wingspanMeters: 15, canopyTopMeters: 1.60, propellerDiameterMeters: 3.12, torpedoLengthMeters: 5, torpedoDiameterMeters: .448, radialCylinderCount: 14, propellerBladeCount: 3, propellerRPM, meshCount, triangleCount, vertexCount, drawCallEstimate, partIds: Object.keys(parts) });
-  return { group, parts, animate, setGear, bounds, spec };
+  return { group, parts, animate, setGear, setTorpedoPresent, hardpointLocal, mountedTorpedo, bounds, spec };
 }
