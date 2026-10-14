@@ -8,6 +8,15 @@
 #naval-duel .duel-observer-controls>.form-label{display:flex;flex-direction:column;gap:5px;min-width:0;font-size:13px;margin:0}
 #naval-duel .duel-observer-controls .form-select{width:100%;min-width:0;min-height:44px}
 #naval-duel .duel-observer-controls [data-camera-note]{grid-column:1/-1;font-size:12px;line-height:1.6;min-height:1.6em;color:var(--muted-foreground);margin:0}
+#naval-duel .duel-observer-zoom{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));align-items:center;gap:6px;grid-column:1/-1;min-width:0}
+#naval-duel .duel-observer-zoom .btn{display:flex;align-items:center;justify-content:center;min-width:0;min-height:44px;font-size:14px;line-height:1.3;padding:6px 8px;white-space:normal}
+#naval-duel .duel-observer-zoom [data-camera-zoom-value]{display:flex;align-items:center;justify-content:center;min-height:44px;font-size:14px;font-variant-numeric:tabular-nums}
+#naval-duel .duel-opponent-inset{position:absolute;top:12px;right:12px;z-index:2;display:flex;flex-direction:column;justify-content:space-between;width:clamp(140px,21vw,210px);max-width:40%;aspect-ratio:16/10;padding:0;overflow:hidden;border:1px solid rgba(186,222,233,.5);border-radius:8px;background:transparent;color:#eff8fc;text-align:left;cursor:pointer;box-shadow:0 3px 12px rgba(0,0,0,.18)}
+#naval-duel .duel-opponent-inset:focus-visible{outline:2px solid var(--primary);outline-offset:3px}
+#naval-duel .duel-opponent-inset:hover{border-color:rgba(214,243,252,.85)}
+#naval-duel .duel-opponent-inset>span{display:block;box-sizing:border-box;width:100%;padding:4px 7px;line-height:1.3;background:rgba(5,16,24,.72);pointer-events:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#naval-duel .duel-opponent-title{font-size:13px;font-weight:600}
+#naval-duel .duel-opponent-action{font-size:12px}
 #naval-duel [hidden]{display:none!important}
 @media(max-width:720px){
   #naval-duel{overflow-wrap:anywhere}
@@ -22,6 +31,7 @@
   #naval-duel .public-playback>.form-label{display:flex;flex-direction:column;justify-content:center;min-width:0;gap:3px;font-size:12px}
   #naval-duel .public-playback [data-pause]{background:var(--primary);color:var(--primary-foreground)}
   #naval-duel .duel-stage{height:clamp(240px,80vw,340px);border-radius:10px}
+  #naval-duel .duel-opponent-inset{top:8px;right:8px;width:140px;aspect-ratio:4/3}
   #naval-duel [data-distance-summary]{margin-top:8px;gap:4px 12px}
   #naval-duel .duel-timeline{margin:6px 0 10px}
   #naval-duel .public-mobile-actions{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 10px}
