@@ -2904,19 +2904,58 @@ function createDuelOcean(T,scene,models) {
     uniform float uTime,uAmplitude,uFoam;
     void oceanField(vec2 p,out float height,out vec2 gradient,out float crest){height=${meanHeight.toFixed(3)};gradient=vec2(0.);crest=0.;${glslWaves}}
   `;
+  // A bounded visual airblast field is separate from the shared swell used by
+  // ship poses and ballistics. Both render stages use this same analytic slope.
+  const muzzleCapacity=16,muzzleLifetime=3,muzzleHeightLimit=.35;
+  let muzzleCount=0,muzzleMaxDepression=0;
+  const muzzleField=`
+    uniform int uMuzzleCount;
+    uniform vec4 uMuzzleCenters[${muzzleCapacity}],uMuzzleDirections[${muzzleCapacity}];
+    void muzzleWaterField(vec2 p,out float height,out vec2 gradient,out float glint){
+      float rawHeight=0.;vec2 rawGradient=vec2(0.);glint=0.;
+      for(int i=0;i&lt;${muzzleCapacity};i++){
+        if(i&gt;=uMuzzleCount)break;
+        vec4 event=uMuzzleCenters[i],axis=uMuzzleDirections[i];
+        vec2 q=p-event.xy,d=axis.xy,lateral=vec2(-d.y,d.x);float age=event.z,radius=axis.z;
+        float along=dot(q,d),across=dot(q,lateral),front=.45+age*1.8;
+        float reach=(front+1.3)*radius;
+        if(along&lt;-.15*radius||dot(q,q)&gt;reach*reach)continue;
+        float gateT=clamp((along/radius+.15)/.4,0.,1.),gate=gateT*gateT*(3.-2.*gateT);
+        vec2 gateGradient=d*(6.*gateT*(1.-gateT)/(.4*radius));
+        float x=(along-.28*radius)/(.95*radius),z=across/(.62*radius),r=sqrt(x*x+z*z+.000001);
+        vec2 radialGradient=(d*x/(.95*radius)+lateral*z/(.62*radius))/r;
+        float attack=1.-exp(-age/.045),tail=1.-smoothstep(2.5,${muzzleLifetime.toFixed(1)},age),strength=event.w*attack*tail;
+        float core=-.24*strength*exp(-age*1.8)*exp(-3.6*r*r);
+        float phase=r-front,ringEnvelope=exp(-phase*phase/.0441),ringWave=cos(phase*8.);
+        float ringAmplitude=.038*strength*exp(-age*.8),ring=ringAmplitude*ringEnvelope*ringWave;
+        float radialSlope=core*(-7.2*r)+ringAmplitude*ringEnvelope*(-2.*phase/.0441*ringWave-8.*sin(phase*8.));
+        rawHeight+=(core+ring)*gate;
+        rawGradient+=radialGradient*radialSlope*gate+(core+ring)*gateGradient;
+        glint+=gate*(abs(core)/.24+abs(ring)/.038);
+      }
+      // Overlapping guns deepen a shared footprint without an ever-growing
+      // crater. The derivative follows the same smooth rational saturation.
+      float denominator=${muzzleHeightLimit.toFixed(2)}+abs(rawHeight);
+      height=${muzzleHeightLimit.toFixed(2)}*rawHeight/denominator;
+      gradient=rawGradient*(${(muzzleHeightLimit*muzzleHeightLimit).toFixed(4)}/(denominator*denominator));
+      glint=clamp(glint,0.,1.);
+    }
+  `;
   const noise=`
     float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
     float noise(vec2 p){vec2 i=floor(p),f=fract(p),s=f*f*(3.-2.*f);return mix(mix(hash(i),hash(i+vec2(1.,0.)),s.x),mix(hash(i+vec2(0.,1.)),hash(i+vec2(1.,1.)),s.x),s.y);}
     float fbm(vec2 p){float v=0.,a=.55;mat2 turn=mat2(.8,-.6,.6,.8);for(int i=0;i&lt;3;i++){v+=noise(p)*a;p=turn*p*2.13+vec2(7.7,13.1);a*=.47;}return v;}
   `;
   const oceanMaterial=new T.ShaderMaterial({
-    uniforms:T.UniformsUtils.merge([T.UniformsLib.fog,{uTime:{value:0},uAmplitude:{value:presets.moderate.amplitude},uFoam:{value:presets.moderate.foam},uSunDirection:{value:new T.Vector3(.25,.78,.57).normalize()},uVisibility:{value:0},uWorldOrigin:{value:new T.Vector2(0,0)}}]),
+    uniforms:T.UniformsUtils.merge([T.UniformsLib.fog,{uTime:{value:0},uAmplitude:{value:presets.moderate.amplitude},uFoam:{value:presets.moderate.foam},uSunDirection:{value:new T.Vector3(.25,.78,.57).normalize()},uVisibility:{value:0},uWorldOrigin:{value:new T.Vector2(0,0)},uMuzzleCount:{value:0},uMuzzleCenters:{value:Array.from({length:muzzleCapacity},()=&gt;new T.Vector4())},uMuzzleDirections:{value:Array.from({length:muzzleCapacity},()=&gt;new T.Vector4(1,0,16,0))}}]),
     fog:true,side:T.DoubleSide,transparent:false,depthWrite:true,
     vertexShader:`
       varying vec3 vWorld;uniform vec2 uWorldOrigin;
       #include &lt;fog_pars_vertex&gt;
       ${field}
+      ${muzzleField}
       void main(){float height,crest;vec2 gradient;oceanField(position.xz+uWorldOrigin,height,gradient,crest);
+        if(uMuzzleCount&gt;0){float pressure,glint;vec2 pressureGradient;muzzleWaterField(position.xz+uWorldOrigin,pressure,pressureGradient,glint);height+=pressure;}
         vec3 displaced=vec3(position.x,height,position.z);vWorld=(modelMatrix*vec4(displaced,1.)).xyz;
         vec4 mvPosition=modelViewMatrix*vec4(displaced,1.);gl_Position=projectionMatrix*mvPosition;
         #include &lt;fog_vertex&gt;
@@ -2926,13 +2965,16 @@ function createDuelOcean(T,scene,models) {
       varying vec3 vWorld;uniform vec3 uSunDirection;uniform float uVisibility;
       #include &lt;fog_pars_fragment&gt;
       ${field}
+      ${muzzleField}
       ${noise}
       void main(){
         float height,crest;vec2 slope;oceanField(vWorld.xz,height,slope,crest);
+        float pressureGlint=0.;if(uMuzzleCount&gt;0){float pressure;vec2 pressureGradient;muzzleWaterField(vWorld.xz,pressure,pressureGradient,pressureGlint);height+=pressure;slope+=pressureGradient;}
         vec2 p=vWorld.xz,flow=vec2(uTime*.18,-uTime*.26);
         // Short ripples alter reflections, not the CPU/GPU shared swell height.
         float ripple=fbm(p*1.65+flow),rippleX=fbm((p+vec2(.075,0.))*1.65+flow),rippleZ=fbm((p+vec2(0.,.075))*1.65+flow);
         vec2 micro=vec2(rippleX-ripple,rippleZ-ripple)*(.064+.025*uAmplitude)/.075;
+        micro*=1.+pressureGlint*.32;
         vec3 swellNormal=normalize(vec3(-slope.x*1.75,1.,-slope.y*1.75));
         vec3 N=normalize(vec3(-slope.x*1.65-micro.x,1.,-slope.y*1.65-micro.y));
         vec3 V=normalize(cameraPosition-vWorld),L=normalize(uSunDirection),R=reflect(-V,N);
@@ -2945,6 +2987,7 @@ function createDuelOcean(T,scene,models) {
         water=mix(water,sky,fresnel*.65);
         vec3 H=normalize(V+L);float fineGlint=fbm(p*4.8+flow*2.2);
         float spec=(pow(max(0.,dot(N,H)),285.)*.58+pow(max(0.,dot(N,H)),66.)*.025)*(.18+.82*smoothstep(.43,.76,fineGlint));
+        spec*=1.-pressureGlint*.35;
         water+=vec3(.91,.93,.94)*spec;
         float ragged=fbm(p*.39+vec2(crest*2.,-uTime*.31)),fine=fbm(p*2.1+flow*1.8);
         float carrier0=sin(dot(p,vec2(${waves[0].direction[0].toFixed(12)},${waves[0].direction[1].toFixed(12)}))*${waves[0].k.toFixed(12)}+uTime*${waves[0].frequency.toFixed(12)}+${waves[0].phase.toFixed(12)});
@@ -2962,6 +3005,26 @@ function createDuelOcean(T,scene,models) {
     `
   });
   const ocean=new T.Mesh(geometry,oceanMaterial);ocean.name=&#x27;Continuous displaced ocean&#x27;;ocean.frustumCulled=false;ocean.renderOrder=-30;root.add(ocean);
+  function setMuzzleDisturbances(records) {
+    const centers=oceanMaterial.uniforms.uMuzzleCenters.value,directions=oceanMaterial.uniforms.uMuzzleDirections.value;
+    muzzleCount=0;let amplitudeBound=0;
+    if(Array.isArray(records))for(let i=0;i&lt;records.length&amp;&amp;muzzleCount&lt;muzzleCapacity;i++){
+      const record=records[i],center=record?.center,direction=record?.direction,age=record?.age;
+      if(!Number.isFinite(center?.[0])||!Number.isFinite(center?.[1])||!Number.isFinite(age)||age&lt;0||age&gt;=muzzleLifetime)continue;
+      const dx=Number(direction?.[0]),dz=Number(direction?.[1]),length=Math.hypot(dx,dz);
+      if(!Number.isFinite(length)||length&lt;1e-6)continue;
+      const strength=Number.isFinite(record.strength)?clamp(record.strength):1,radius=Number.isFinite(record.radius)?clamp(record.radius,4,48):16;
+      if(strength&lt;=0)continue;
+      centers[muzzleCount].set(center[0],center[1],age,strength);directions[muzzleCount].set(dx/length,dz/length,radius,0);muzzleCount++;
+      const attack=1-Math.exp(-age/.045),tail=1-smooth((age-2.5)/.5);
+      amplitudeBound+=strength*attack*tail*(.24*Math.exp(-age*1.8)+.038*Math.exp(-age*.8));
+    }
+    // Clear old slots as well as the count, so reverse seeking and empty frames
+    // cannot leave stale pulses in a reused uniform upload.
+    for(let i=muzzleCount;i&lt;muzzleCapacity;i++){centers[i].set(0,0,0,0);directions[i].set(1,0,16,0);}
+    oceanMaterial.uniforms.uMuzzleCount.value=muzzleCount;
+    muzzleMaxDepression=muzzleHeightLimit*amplitudeBound/(muzzleHeightLimit+amplitudeBound);
+  }
   function setWorldFrame({metric=false,center=[]}={}) {
     const nextMetric=metric===true;
     if(nextMetric!==metricWorldFrame){
@@ -3126,10 +3189,10 @@ function createDuelOcean(T,scene,models) {
     }
     foamGeometry.setDrawRange(0,foamCount);foamMesh.visible=foamCount&gt;0;for(const a of Object.values(foamGeometry.attributes))a.needsUpdate=true;
     sprayGeometry.instanceCount=sprayCount;sprayMesh.visible=sprayCount&gt;0;for(const a of Object.values(sprayGeometry.attributes))if(a.isInstancedBufferAttribute)a.needsUpdate=true;
-    return {seaState:lastSeaState,foamVertices:foamCount,bowSpray:sprayCount,wakingShips:lastShips,historyVertices,historyShips,historySamples:historyCalls,overflow};
+    return {seaState:lastSeaState,foamVertices:foamCount,bowSpray:sprayCount,wakingShips:lastShips,historyVertices,historyShips,historySamples:historyCalls,overflow,muzzleDisturbanceCount:muzzleCount,muzzleMaxDepression,muzzleHeightLimit};
   }
-  function getDiagnostics() {return {time:lastTime,seaState:lastSeaState,meanHeight,timeScale,waves: waves.map(w=&gt;({...w,direction:w.direction.slice()})),presets:JSON.parse(JSON.stringify(presets)),oceanVertices:vertices.length/3,oceanTriangles:indices.length/3,extent:metricWorldFrame?60000:6000,metricWorldFrame,worldOrigin:oceanMaterial.uniforms.uWorldOrigin.value.toArray(),foamVertices:foamCount,foamCapacity,bowSpray:sprayCount,sprayCapacity,overflow,historyVertices,historyShips,historySamples:historyCalls,historyCacheEntries:historyCache.size,foamGeometry,sprayGeometry,oceanGeometry:geometry,oceanMaterial};}
-  update(0,{});return {root,update,setWorldFrame,sampleSurface,sampleShip,getDiagnostics};
+  function getDiagnostics() {return {time:lastTime,seaState:lastSeaState,meanHeight,timeScale,waves: waves.map(w=&gt;({...w,direction:w.direction.slice()})),presets:JSON.parse(JSON.stringify(presets)),oceanVertices:vertices.length/3,oceanTriangles:indices.length/3,extent:metricWorldFrame?60000:6000,metricWorldFrame,worldOrigin:oceanMaterial.uniforms.uWorldOrigin.value.toArray(),muzzleDisturbanceCount:muzzleCount,muzzleCapacity,muzzleLifetime,muzzleMaxDepression,muzzleMaxDepressionIsUpperBound:true,muzzleHeightLimit,foamVertices:foamCount,foamCapacity,bowSpray:sprayCount,sprayCapacity,overflow,historyVertices,historyShips,historySamples:historyCalls,historyCacheEntries:historyCache.size,foamGeometry,sprayGeometry,oceanGeometry:geometry,oceanMaterial};}
+  update(0,{});return {root,update,setWorldFrame,setMuzzleDisturbances,sampleSurface,sampleShip,getDiagnostics};
 }
 
 // World-space comparison marks. They do not alter ships, paths or hitboxes.
@@ -6333,6 +6396,7 @@ function createNavalDuelEffects(T, scene, camera, models, options={}) {
   let eventIdentity=null,cache=new Map(),blastCache=new Map(),energeticCache=new Map(),overflow=0,lastReport=null,lastTime=-1;
   let ejectedTurrets=0,detachedBarrels=0,blastHeight=0,activeHullImpacts=0,hullImpactHeight=0,magazineSmokeHeight=0,magazineSteelHeight=0,magazineHotGasLobes=0;
   let activeHeBursts=0,fuelFlashes=0,fuelBurningZones=0;
+  let muzzleWaterCache=new Map(),muzzleWaterSeen=new Set(),muzzleWaterGroups=[],muzzleWaterActiveShots=0,muzzleWaterPeakHeight=0,muzzleWaterDropped=0;
   const magazineBounds=new T.Box3(),magazinePools=new Map(),ejectedMaterials=new Map();
   const collisionCache=new Map(),raycaster=new T.Raycaster(),collisionMaterial=new T.MeshBasicMaterial({side:T.DoubleSide});
   const modelShip=id=&gt;models[id]&amp;&amp;(models[id].ship||models[id].group||models[id]);
@@ -6582,6 +6646,23 @@ function createNavalDuelEffects(T, scene, camera, models, options={}) {
   const gas=batch(&#x27;muzzle gas&#x27;,32,gasFragment,1),gunSmoke=batch(&#x27;rolling gun smoke&#x27;,180,cloudFragment(false));
   const traces=batch(&#x27;short shell glints&#x27;,80,traceFragment,1),columns=batch(&#x27;water columns&#x27;,64,waterFragment,2);
   const sprays=batch(&#x27;water spray&#x27;,320,sprayFragment),foam=batch(&#x27;water disturbance&#x27;,80,foamFragment,3);
+  // Main-gun airblast stays in its own fixed pools; impact splashes and their
+  // tall columns retain their original buffers, timing and rendering.
+  const muzzleWaterMist=batch(&#x27;muzzle airblast low water mist&#x27;,256,sprayFragment);
+  const muzzleWaterFoam=batch(&#x27;muzzle airblast directional foam&#x27;,64,noise+`
+    void main(){vec2 p=(vUv-.5)*2.;float n=fbm(p*vec2(11.,7.)+vParams.z-vParams.x*.16),fine=fbm(p*25.+vParams.z),foamPatch=fbm(p*5.7+vParams.z*.73+vParams.x*.12);
+      float r=length(p)+(n-.5)*.19,front=exp(-pow((r-.73)/(.043+foamPatch*.035),2.))*smoothstep(.34,.72,foamPatch+fine*.10);
+      float streaks=smoothstep(.42,.81,n+fine*.17)*(1.-smoothstep(.2,.85,r));
+      float alpha=(front*(.26+.29*fine)+streaks*.22)*vParams.y;
+      if(alpha&lt;.005)discard;gl_FragColor=vec4(mix(vec3(.44,.65,.69),vec3(.89,.96,.94),fine*.52+front*.35),alpha);}
+  `,6);
+  muzzleWaterFoam.mesh.material.vertexShader=`
+    attribute vec3 aCenter;attribute vec2 aSize;attribute vec4 aParams;attribute vec3 aDirection;
+    varying vec2 vUv;varying vec4 vParams;
+    void main(){vUv=uv;vParams=aParams;vec2 forward=normalize(aDirection.xz),side=vec2(-forward.y,forward.x);
+      vec2 p=forward*position.x*aSize.x+side*position.y*aSize.y;
+      gl_Position=projectionMatrix*viewMatrix*vec4(aCenter+vec3(p.x,0.,p.y),1.);}
+  `;
   const fire=batch(&#x27;impact and compartment fire&#x27;,160,fireFragment),damageSmoke=batch(&#x27;damage smoke&#x27;,640,cloudFragment(true));
   const impactFlashes=batch(&#x27;hull entry flash&#x27;,80,impactFlashFragment),impactSparks=batch(&#x27;impact hot metal sparks&#x27;,512,impactSparkFragment,1);
   const impactSmoke=batch(&#x27;impact pressure smoke&#x27;,128,magazineSootFragment),impactRings=batch(&#x27;hull impact pressure ring&#x27;,64,shockFragment,4);
@@ -6645,6 +6726,7 @@ function createNavalDuelEffects(T, scene, camera, models, options={}) {
     for(const record of Object.values(shellMeshes))record.count=0;
     debrisCount=0;overflow=0;ejectedTurrets=0;detachedBarrels=0;blastHeight=0;activeHullImpacts=0;hullImpactHeight=0;magazineSmokeHeight=0;magazineSteelHeight=0;magazineHotGasLobes=0;magazineBounds.makeEmpty();
     heDebrisCount=0;activeHeBursts=0;fuelFlashes=0;fuelBurningZones=0;
+    muzzleWaterSeen.clear();muzzleWaterGroups=[];muzzleWaterActiveShots=0;muzzleWaterPeakHeight=0;muzzleWaterDropped=0;
     for(const pool of magazinePools.values()){pool.turret.mount.visible=pool.originalVisible;pool.group.visible=false;pool.well.visible=false;for(const tube of pool.tubes)tube.group.visible=false;}
     for(const record of barrels)record.barrel.position.copy(record.rest);
   }
@@ -6829,8 +6911,45 @@ function createNavalDuelEffects(T, scene, camera, models, options={}) {
     const u=clamp(age/shot.flightTime),u2=u*u;
     return result.copy(shot.origin).multiplyScalar(6*u2-6*u).addScaledVector(shot.tangent0,3*u2-4*u+1).addScaledVector(shot.target,-6*u2+6*u).addScaledVector(shot.tangent1,3*u2-2*u).normalize();
   }
-  function muzzleEffect(shot,time) {
+  function muzzleWaterAnchor(shot,state,sampleTime){
+    const key=shot.event.shotId||shot.event.id;if(muzzleWaterCache.has(key))return muzzleWaterCache.get(key);
+    const source=shot.record.id,built=models[source],horizontal=Math.hypot(shot.bore.x,shot.bore.z),level=waterHeight(shot.origin.x,shot.origin.z,shot.launchTime),height=shot.origin.y-level;
+    if(horizontal&lt;.08||height&lt;.35){muzzleWaterCache.set(key,null);return null;}
+    const sampled=typeof sampleTime===&#x27;function&#x27;?sampleTime(shot.launchTime)?.ships?.[source]:null,pose=shot.event.launchPose||sampled||state.ships?.[source],position=pose?.position||sampled?.renderPosition;
+    if(!Array.isArray(position)||!position.every(Number.isFinite)){muzzleWaterCache.set(key,null);return null;}
+    const heading=Number(pose?.heading)||0,c=Math.cos(heading),s=Math.sin(heading),dx=shot.bore.x/horizontal,dz=shot.bore.z/horizontal;
+    const data={source,ti:shot.record.ti,c,s,x:position[0],z:position[2],dx,dz,center:[shot.origin.x+dx*3,shot.origin.z+dz*3],height,strength:0,radius:0};
+    function inside(x,z,padding){const wx=x-data.x,wz=z-data.z,lx=data.c*wx-data.s*wz,lz=data.s*wx+data.c*wz,beam=built?.F?.beam?.(lx)??(source===&#x27;yamato&#x27;?8.2:7);return Math.abs(lx)&lt;58&amp;&amp;Math.abs(lz)&lt;beam+padding;}
+    let shift=0;while(inside(data.center[0],data.center[1],2)&amp;&amp;shift&lt;40){data.center[0]+=dx;data.center[1]+=dz;shift++;}
+    if(inside(data.center[0],data.center[1],2)){muzzleWaterCache.set(key,null);return null;}
+    const elevation=Math.abs(Math.asin(clamp(shot.bore.y,-1,1))),low=1-smooth((elevation-.05)/.70);
+    data.strength=clamp((.18+.72*low)*Math.exp(-Math.max(0,height-7)*.075-shift*.065),.035,.95);data.radius=12+data.strength*9;data.delay=.025+clamp(height,0,30)/180;data.inside=inside;
+    muzzleWaterCache.set(key,data);return data;
+  }
+  function muzzleWaterEffect(shot,time,state,sampleTime){
+    const age=time-shot.launchTime,key=shot.event.shotId||shot.event.id;if(options.muzzleWater===false||age&lt;0||age&gt;3||muzzleWaterSeen.has(key))return;muzzleWaterSeen.add(key);
+    const water=muzzleWaterAnchor(shot,state,sampleTime);if(!water||age&lt;water.delay)return;
+    const a=age-water.delay,strength=water.strength,seed=shot.seed;muzzleWaterActiveShots++;
+    const group=muzzleWaterGroups.find(g=&gt;g.source===water.source&amp;&amp;g.ti===water.ti&amp;&amp;Math.abs(g.launchTime-shot.launchTime)&lt;.45&amp;&amp;Math.hypot(g.data.center[0]-water.center[0],g.data.center[1]-water.center[1])&lt;6&amp;&amp;g.data.direction[0]*water.dx+g.data.direction[1]*water.dz&gt;.985);
+    if(group){group.data.strength=Math.min(.95,group.data.strength+strength*.16);group.data.radius=Math.max(group.data.radius,water.radius);group.data.age=Math.min(group.data.age,age);}
+    else if(muzzleWaterGroups.length&lt;16)muzzleWaterGroups.push({source:water.source,ti:water.ti,launchTime:shot.launchTime,data:{center:water.center.slice(),direction:[water.dx,water.dz],age,strength,radius:water.radius}});
+    else muzzleWaterDropped++;
+    const mistCount=options.reducedMotion?3:6;
+    for(let j=0;j&lt;mistCount;j++){
+      const t=a-j*.025;if(t&lt;0||t&gt;1.8)continue;const phase=seed+j*2.399963,reach=(1-Math.exp(-t*5))*(2+j*.65)+t*1.5,spread=Math.sin(phase)*(1+Math.sqrt(t)*1.9);
+      const x=water.center[0]+water.dx*reach-water.dz*spread,z=water.center[1]+water.dz*reach+water.dx*spread;if(water.inside(x,z,1.4))continue;
+      const lift=Math.max(.12,Math.min(2.2,(3+j*.10)*t-2.1*t*t)),level=waterHeight(x,z,time);temporary.set(x,level+.18+lift,z);
+      const width=3.1+(1-Math.exp(-t*4))*3.3+t*.8,height=1.05+lift*.78,opacity=smooth(t/.04)*(1-smooth((t-.48)/1.2))*strength*(.30-j*.019);
+      if(muzzleWaterMist.count&lt;muzzleWaterMist.capacity){const before=muzzleWaterMist.count;put(muzzleWaterMist,temporary,width,height,t,opacity,seed+j*17.31);if(muzzleWaterMist.count&gt;before)muzzleWaterPeakHeight=Math.max(muzzleWaterPeakHeight,temporary.y-level+height*.5);}else muzzleWaterDropped++;
+    }
+    const fade=smooth(a/.035)*(1-smooth((a-.40)/2.48)),diameter=water.radius*2*(.35+.65*(1-Math.exp(-a*3.4)));direction.set(water.dx,0,water.dz);
+    temporary.set(water.center[0],waterHeight(water.center[0],water.center[1],time)+.07,water.center[1]);
+    if(muzzleWaterFoam.count&lt;muzzleWaterFoam.capacity)put(muzzleWaterFoam,temporary,diameter,diameter*.64,a,fade*strength*.60,seed,0,direction);else muzzleWaterDropped++;
+    if(a&lt;1.45){temporary.x+=water.dx*2;temporary.z+=water.dz*2;temporary.y=waterHeight(temporary.x,temporary.z,time)+.09;if(muzzleWaterFoam.count&lt;muzzleWaterFoam.capacity)put(muzzleWaterFoam,temporary,diameter*.58,diameter*.35,a,fade*strength*.28,seed+19,0,direction);else muzzleWaterDropped++;}
+  }
+  function muzzleEffect(shot,time,state,sampleTime) {
     const age=time-shot.launchTime;if(age&lt;0||age&gt;4.8)return;
+    muzzleWaterEffect(shot,time,state,sampleTime);
     const bore=shot.bore,seed=shot.seed;
     if(age&lt;.19) {
       const envelope=smooth(age/.007)*(1-smooth((age-.027)/.163)),length=7.8+(1-Math.exp(-age*45))*4.4;
@@ -7271,11 +7390,11 @@ function createNavalDuelEffects(T, scene, camera, models, options={}) {
     }
     return burningZones;
   }
-  function emptyReport(){return {active:false,flashes:0,gunSmoke:0,projectiles:0,plumes:0,fire:0,damageSmoke:0,burningZones:0,debris:0,ejectedTurrets:0,detachedBarrels:0,blastHeight:0,activeHullImpacts:0,impactSparks:0,impactFlashes:0,impactSmoke:0,hullImpactHeight:0,magazinePressureFlashes:0,magazineVentJets:0,magazineFlameTongues:0,magazineSoot:0,magazineEmbers:0,magazineVentBursts:0,magazineGasLobes:0,magazineHotGasLobes:0,magazineDust:0,magazineGasHeight:0,magazineSmokeHeight:0,magazineSteelHeight:0,activeHeBursts:0,hePressureFlashes:0,heBlastSoot:0,heFragments:0,fuelFlashes:0,fuelBurningZones:0,fuelSmoke:0,overflow:0};}
-  function clear() {cache=new Map();blastCache=new Map();energeticCache=new Map();lastTime=-1;resetFrame();finishFrame();lastReport=emptyReport();return lastReport;}
+  function emptyReport(){return {active:false,flashes:0,gunSmoke:0,projectiles:0,plumes:0,fire:0,damageSmoke:0,burningZones:0,debris:0,ejectedTurrets:0,detachedBarrels:0,blastHeight:0,activeHullImpacts:0,impactSparks:0,impactFlashes:0,impactSmoke:0,hullImpactHeight:0,magazinePressureFlashes:0,magazineVentJets:0,magazineFlameTongues:0,magazineSoot:0,magazineEmbers:0,magazineVentBursts:0,magazineGasLobes:0,magazineHotGasLobes:0,magazineDust:0,magazineGasHeight:0,magazineSmokeHeight:0,magazineSteelHeight:0,activeHeBursts:0,hePressureFlashes:0,heBlastSoot:0,heFragments:0,fuelFlashes:0,fuelBurningZones:0,fuelSmoke:0,muzzleWaterMist:0,muzzleWaterFoam:0,muzzleWaterActiveShots:0,muzzleWaterPeakHeight:0,muzzleWaterDropped:0,muzzleWaterDisturbances:[],overflow:0};}
+  function clear() {cache=new Map();blastCache=new Map();energeticCache=new Map();muzzleWaterCache=new Map();lastTime=-1;resetFrame();finishFrame();lastReport=emptyReport();return lastReport;}
   function update(time,events,state={},sampleTime) {
     if(!Number.isFinite(time)||time&lt;0||!Array.isArray(events))return clear();
-    if(eventIdentity!==events){cache=new Map();blastCache=new Map();energeticCache=new Map();eventIdentity=events;}
+    if(eventIdentity!==events){cache=new Map();blastCache=new Map();energeticCache=new Map();muzzleWaterCache=new Map();eventIdentity=events;}
     resetFrame();lastTime=time;for(const blast of blastCache.values())blast.bounds?.makeEmpty();
     for(const e of events) {
       if(e.type===&#x27;fuel_ignition&#x27;&amp;&amp;Number.isFinite(e.time)&amp;&amp;e.target&amp;&amp;time&gt;=e.time){fuelIgnition(e,time,state,sampleTime);continue;}
@@ -7289,7 +7408,7 @@ function createNavalDuelEffects(T, scene, camera, models, options={}) {
       const launch=Number.isFinite(e.launchTime)?e.launchTime:e.time-(e.flightTime||5);
       if(time&lt;launch||time&gt;e.time+8.5)continue;
       const key=e.shotId||e.id,shot=cache.get(key)||makeShot(e,state,sampleTime);if(!shot)continue;
-      muzzleEffect(shot,time);projectile(shot,time);
+      muzzleEffect(shot,time,state,sampleTime);projectile(shot,time);
       if(e.type===&#x27;shield-impact&#x27;)continue;
       if(e.type===&#x27;splash&#x27;)waterImpact(shot,time);else if(e.ammoType===&#x27;he&#x27;&amp;&amp;(e.blastTrace||e.heBurst))highExplosiveImpact(shot,time,state,sampleTime);else hullImpact(shot,time);
     }
@@ -7297,6 +7416,7 @@ function createNavalDuelEffects(T, scene, camera, models, options={}) {
     finishFrame();
     const projectiles=Object.values(shellMeshes).reduce((n,r)=&gt;n+r.count,0);
     lastReport={active:allBatches.some(b=&gt;b.count&gt;0)||projectiles&gt;0||ejectedTurrets&gt;0||detachedBarrels&gt;0||heDebrisCount&gt;0,flashes:gas.count,gunSmoke:gunSmoke.count,projectiles,plumes:columns.count,fire:fire.count+magazineJets.count+magazineFireballs.count,damageSmoke:damageSmoke.count+magazineSoot.count+impactSmoke.count+magazineDust.count+heSoot.count+fuelSmoke.count,burningZones,debris:debrisCount+heDebrisCount,ejectedTurrets,detachedBarrels,blastHeight,activeHullImpacts,impactSparks:impactSparks.count,impactFlashes:impactFlashes.count,impactSmoke:impactSmoke.count,hullImpactHeight,magazinePressureFlashes:magazinePressureFlashes.count,magazineVentJets:magazineJets.count,magazineFlameTongues:magazineFireballs.count,magazineSoot:magazineSoot.count,magazineEmbers:magazineEmbers.count,magazineVentBursts:magazineJets.count,magazineGasLobes:magazineFireballs.count,magazineHotGasLobes,magazineDust:magazineDust.count,magazineGasHeight:blastHeight,magazineSmokeHeight,magazineSteelHeight,activeHeBursts,hePressureFlashes:heFlashes.count,heBlastSoot:heSoot.count,heFragments:heDebrisCount,fuelFlashes,fuelBurningZones,fuelSmoke:fuelSmoke.count,overflow};
+    Object.assign(lastReport,{muzzleWaterMist:muzzleWaterMist.count,muzzleWaterFoam:muzzleWaterFoam.count,muzzleWaterActiveShots,muzzleWaterPeakHeight,muzzleWaterDropped,muzzleWaterDisturbances:muzzleWaterGroups.map(g=&gt;g.data)});
     return lastReport;
   }
   function getShotPose(shotId,time) {
@@ -7835,7 +7955,9 @@ function createDuelCompartments(T,built,id){
     const compartments={};
     for(const [id,built] of Object.entries(models)){mergeParts(built,built.ship);for(const turret of [...built.armament.mainTurrets,...built.armament.secondaryTurrets]){mergeParts(built,turret.mount);for(const barrel of turret.barrels)mergeParts(built,barrel);}scene.add(built.ship);compartments[id]=createDuelCompartments(T,built,id);}
     stage.dataset.components=String(models.yamato.componentCount+models.iowa.componentCount);stage.dataset.triangles=String(models.yamato.triangleCount+models.iowa.triangleCount);
-    const effects=createNavalDuelEffects(T,scene,camera,models,{waterHeight:(x,z,t)=&gt;sea.sampleSurface(x,z,t+oceanOffset,seaState).height}),trajectories=createDuelTrajectories(T,scene,effects),reduced=window.matchMedia(&#x27;(prefers-reduced-motion: reduce)&#x27;).matches;
+    const effectsOptions={waterHeight:(x,z,t)=&gt;sea.sampleSurface(x,z,t+oceanOffset,seaState).height,muzzleWater:true};
+    const effects=createNavalDuelEffects(T,scene,camera,models,effectsOptions),trajectories=createDuelTrajectories(T,scene,effects),reduced=window.matchMedia(&#x27;(prefers-reduced-motion: reduce)&#x27;).matches;
+    effectsOptions.reducedMotion=reduced;
     const metricRuler=createDuelMetricRuler(T,scene);
     const worldViewButton=root.querySelector(&#x27;button[data-world-view]&#x27;),metricSummary=root.querySelector(&#x27;[data-metric-summary]&#x27;);
     const observerCamera=createDuelObserverCamera(T),observerControls=root.querySelector(&#x27;.duel-observer-controls&#x27;),cameraModeInput=root.querySelector(&#x27;select[data-camera-mode]&#x27;),cameraShipInput=root.querySelector(&#x27;select[data-camera-ship]&#x27;),cameraNote=root.querySelector(&#x27;[data-camera-note]&#x27;);
@@ -8194,6 +8316,7 @@ function createDuelCompartments(T,built,id){
     function update(status=true){
       snapshot=sampleVisual(clock);if(blastPreview)blastPreview.frameState=sampleVisual(blastPreview.poseTime);const shown=displayedState();applyPose(shown);
       const effectTime=blastPreview?blastPreview.poseTime+blastPreview.elapsed:hasRun?clock:-1,effectEvents=blastPreview?blastPreview.events:duel.events,effectSampler=blastPreview?t=&gt;({...blastPreview.frameState,time:t}):sampleVisual;
+      effectsOptions.muzzleWater=!cutaway&amp;&amp;!blastPreview;
       const report=effects.update(effectTime,effectEvents,shown,effectSampler);
       const shieldReport=shieldEffects.update(cutaway||blastPreview?-1:effectTime,effectEvents,shown,effectSampler);if(shieldReport)for(const[k,v]of Object.entries(shieldReport))if(typeof v===&#x27;number&#x27;)stage.dataset[&#x27;shieldVfx&#x27;+k.charAt(0).toUpperCase()+k.slice(1)]=String(v);if(report)for(const [k,v] of Object.entries(report))if(typeof v===&#x27;number&#x27;)stage.dataset[&#x27;vfx&#x27;+k.charAt(0).toUpperCase()+k.slice(1)]=String(v);
       const paths=trajectories.update(effectTime,effectEvents,{visible:trajectoryMode,theme:trajectoryTheme,cutaway,preview:!!blastPreview});
@@ -8214,7 +8337,9 @@ function createDuelCompartments(T,built,id){
       }
       }
       const metricReport=metricRuler.update(shown,{visible:config.coordinateModel===&#x27;metric-scale&#x27;&amp;&amp;focus===&#x27;whole&#x27;&amp;&amp;!cutaway&amp;&amp;!blastPreview,unitsPerMeter:duel.initialConfig.displayUnitsPerMeter,hullLengthUnits:110});Object.assign(stage.dataset,{rulerVisible:String(metricReport.visible),rulerHullLengths:String(metricReport.hullLengths),rulerRangeMeters:String(metricReport.rangeMeters)});
+      sea.setMuzzleDisturbances(cutaway||blastPreview?[]:report?.muzzleWaterDisturbances||[]);
       const seaClock=blastPreview?blastPreview.poseTime+blastPreview.elapsed:clock,seaReport=sea.update(seaClock+oceanOffset,shown,{seaState,visibility:config.visibility,sampleTime:duel.sample,motionTime:blastPreview?blastPreview.poseTime:hasRun?clock:0});sea.root.visible=!cutaway;sea.setWorldFrame({metric:config.coordinateModel===&#x27;metric-scale&#x27;,center:currentCenter().toArray()});
+      Object.assign(stage.dataset,{seaMuzzleDisturbances:String(seaReport.muzzleDisturbanceCount),seaMuzzleMaxDepression:String(seaReport.muzzleMaxDepression),seaMuzzleHeightLimit:String(seaReport.muzzleHeightLimit)});
       Object.assign(stage.dataset,{seaState,oceanTime:(clock+oceanOffset).toFixed(2),seaFoam:String(seaReport.foamVertices),seaBowSpray:String(seaReport.bowSpray),seaOverflow:String(seaReport.overflow),seaWakeHistory:String(seaReport.historyVertices||0),yamatoHeave:snapshot.ships.yamato.seaMotion.heave.toFixed(4),yamatoPitch:snapshot.ships.yamato.seaMotion.pitch.toFixed(5),yamatoRoll:snapshot.ships.yamato.seaMotion.roll.toFixed(5),iowaHeave:snapshot.ships.iowa.seaMotion.heave.toFixed(4),iowaPitch:snapshot.ships.iowa.seaMotion.pitch.toFixed(5),iowaRoll:snapshot.ships.iowa.seaMotion.roll.toFixed(5)});if(status)updateStatus();dirty=true;
       for(const id of [&#x27;yamato&#x27;,&#x27;iowa&#x27;]){const motion=snapshot.ships[id].impactMotion;stage.dataset[id+&#x27;ImpactEnergy&#x27;]=String(motion?.energy||0);stage.dataset[id+&#x27;ImpactRoll&#x27;]=String(motion?.roll||0);}
     }

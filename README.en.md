@@ -16,6 +16,7 @@ Set the engagement range and sea conditions, then watch the ships maneuver and e
 - Independent AP / HE selection for each ship, with distinct impact blasts, fragments and ignition
 - Fuel leaks and fires caused by actual internal damage, with finite fuel and shared firefighting capacity
 - Playback, pause, timeline seeking and slow motion
+- Low water mist, foam and pressure ripples synchronized with actual main-gun launches and muzzle directions
 - Free orbit, battle observation, ship tracking and incoming-shell impact views
 
 This is a **game model inspired by historical ships and equipment**. Ballistics, armor, damage and explosion probabilities use approximations; this project is not a calibrated military simulation. A small number of vital penetrations can be lethal, but the simulation does not trigger an explosion simply because a hit counter reaches a threshold.
@@ -41,6 +42,8 @@ New battles use **v22 for naval combat / v23 for SF shields**, with physical hul
 The **Observation camera** selector stays directly above the scene, including on mobile. **Free orbit** lets you rotate and zoom. **Battle view** watches the selected ship’s gunfire toward the enemy, while **Ship tracking** follows its course and turns. **Impact tracking** follows incoming shells and their arrivals near the selected ship. A distant opponent retains its physical size in the scene. Drag during an automatic view to return to free orbit. These controls move only the camera; they preserve battle time, scale, ballistics, collision checks and results.
 
 Scrolling or using **Zoom − / Zoom +** during an automatic view keeps ship tracking active. **Reset view** restores the selected mode’s default zoom. A **live opponent view** appears at the top right of a ship close-up; click it to observe that ship. It renders the same battle’s actual ship and effects at the current time, without changing model size or engagement range.
+
+Main-gun launches also disturb the nearby water with an airblast effect. Low mist, foam and small outward ripples start at the actual launch time and muzzle direction, then fade; seeking reconstructs their positions and ages. Local water displacement and reflection changes are visual approximations, rather than a hydrodynamic pressure solver. They do not affect ship wave motion, ballistics or collision checks.
 
 Reference muzzle speeds: Yamato AP **780 m/s**, common shell (HE approximation) **805 m/s**; Iowa AP **762 m/s**, HC (HE) **819.9 m/s**. Sources: contemporary US Navy [Yamato report O-45(N), pp. 16–17](https://www.fischer-tropsch.org/primary_documents/gvt_reports/USNAVY/USNTMJ%20Reports/USNTMJ-200F-0384-0445%20Report%20O-45%20N.pdf) and [OP1188 firing tables, pp. 61–62](https://www.eugeneleeslover.com/ENGINEERING/OP1188/OP1188_Abridged_Range_Tables_1944.pdf).
 
