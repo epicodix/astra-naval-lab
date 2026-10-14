@@ -449,14 +449,18 @@
     "휠·줌 버튼은 추적 유지 · 드래그는 자유 관찰": "Scroll or zoom to keep tracking · Drag for free orbit",
     "적 방향을 향해 함선과 발사 흐름을 관찰합니다. 휠·줌 버튼은 추적 유지 · 드래그는 자유 관찰": "View the ship and its gunfire toward the enemy. Scroll or zoom to keep tracking · Drag for free orbit",
     "함선의 항로와 선회를 따라갑니다. 휠·줌 버튼은 추적 유지 · 드래그는 자유 관찰": "Follow the ship’s course and turns. Scroll or zoom to keep tracking · Drag for free orbit",
+    "포구 너머 실제 적 함선을 함께 따라봅니다. 멀수록 작고 흐릿하게 보입니다. 휠·줌 버튼은 추적 유지 · 드래그는 자유 관찰": "Track the ship and its opponent beyond the guns. Distant ships appear smaller and hazier. Scroll or zoom to keep tracking · Drag for free orbit",
     "관찰 카메라 축소": "Zoom observation camera out",
     "관찰 카메라 확대": "Zoom observation camera in",
     "관찰 배율": "Observation zoom",
-    "상대 함선 관찰": "Observe opponent ship"
+    "상대 함선 관찰": "Observe opponent ship",
+    "상대 함선 확대 보기": "Opponent close-up"
   },
   "fragments": {
     " · 휠·줌은 추적 유지 · 드래그는 자유 관찰": " · Scroll or zoom to keep tracking · Drag for free orbit",
     "상대 함선 관찰 · ": "Observe opponent · ",
+    "상대 함선 확대 보기 · ": "Opponent close-up · ",
+    "상대 확대 · ": "Opponent close-up · ",
     "상대 · ": "Opponent · ",
     " · 침몰": " · Sunk",
     " · 전투 불능": " · Combat ineffective",

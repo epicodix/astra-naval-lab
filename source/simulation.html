@@ -58,7 +58,7 @@
     <div class="duel-loading text-small text-muted" aria-live="polite">함대를 준비하는 중…</div>
     <span class="viz-badge duel-label" data-ship-label="yamato">야마토</span><span class="viz-badge duel-label" data-ship-label="iowa">아이오와</span>
     <span class="viz-badge duel-scale" data-scale>함선 확대 표시</span>
-    <button class="duel-opponent-inset" type="button" data-opponent-view hidden aria-label="상대 함선 관찰"><span class="duel-opponent-title" data-opponent-title>상대 함선</span><span class="duel-opponent-action">이 함선 관찰</span></button>
+    <button class="duel-opponent-inset" type="button" data-opponent-view hidden aria-label="상대 함선 확대 보기"><span class="duel-opponent-title" data-opponent-title>상대 함선 확대 보기</span><span class="duel-opponent-action">이 함선 관찰</span></button>
   </div>
   <div class="viz-row text-small tabular-nums" aria-label="교전 거리"><span data-current-range>함간 거리 42.0 km</span><span data-closing-speed>접근 중</span><span data-encounter-phase>최대 사거리 조우</span></div>
   <div class="duel-metric-info text-small" data-metric-summary hidden></div>
@@ -90,6 +90,8 @@
   #naval-duel .duel-loading{position:absolute;inset:0;display:flex;justify-content:center;align-items:center;z-index:3;background:rgba(5,15,21,.82);color:#fff}
   #naval-duel .duel-loading[hidden],#naval-duel .duel-sections[hidden],#naval-duel .duel-label[hidden],#naval-duel [data-return][hidden],#naval-duel [data-range-field][hidden],#naval-duel .duel-status[hidden],#naval-duel .duel-log[hidden],#naval-duel [aria-label="교전 거리"][hidden]{display:none}
   #naval-duel .duel-label{position:absolute;pointer-events:none;transform:translate(-50%,-100%);z-index:1}
+  #naval-duel .duel-label[data-distant="true"]{font-size:11px;font-weight:400;white-space:nowrap;background:rgba(9,27,39,.72);border:1px solid rgba(183,211,221,.4);color:#e0edf3}
+  #naval-duel .duel-label[data-distant="true"]::after{content:"";position:absolute;left:50%;top:100%;height:12px;border-left:1px solid rgba(195,220,230,.65)}
   #naval-duel .duel-scale{position:absolute;left:8px;bottom:8px;pointer-events:none}
   #naval-duel .duel-timeline{display:flex;flex-direction:column}
   #naval-duel .duel-status{margin-top:12px;margin-bottom:12px}
@@ -1712,6 +1714,16 @@ function createDuelObserverCamera(T){
     const target=centre.addScaledVector(bearing,18),points=shipPoints(ship).concat(shipPoints(enemy));
     return frame(target,direction,points,lens);
   }
+  function shipFrame(ship,enemy,lens){
+    const bearing=renderPosition(enemy).sub(renderPosition(ship));bearing.y=0;if(bearing.lengthSq()<1e-8)bearing.copy(forward(ship));bearing.normalize();
+    const side=new T.Vector3(-bearing.z,0,bearing.x),direction=bearing.clone().negate().addScaledVector(side,-Math.min(.16,lens.horizontal*.30));direction.y=Math.min(.23,lens.vertical*.72);
+    // Keep the near hull readable while looking across its firing side toward
+    // the actual opponent. The shallow pitch and aspect-aware side offset
+    // leave that distant bearing inside the lens while retaining enough eye
+    // height for zoom to move closer before the sea-level floor is reached.
+    // The opponent stays at its physical position and native size.
+    return frame(shipCentre(ship),direction,shipPoints(ship),lens);
+  }
   function beats(events){
     if(!Array.isArray(events))return {yamato:[],iowa:[]};
     let cached=eventLists.get(events);if(cached&&cached.length===events.length)return cached.byShip;
@@ -1749,7 +1761,7 @@ function createDuelObserverCamera(T){
     const lens=projection(options.aspect,options.fov),time=Number.isFinite(options.time)?options.time:Number(options.state.time)||0;
     let pose,beat=null,blend=0,phase=mode==='impact'?'waiting':'tracking';
     if(mode==='ship'){
-      const bow=forward(ship),side=new T.Vector3(-bow.z,0,bow.x),direction=bow.multiplyScalar(-.76).addScaledVector(side,.68);direction.y=.58;pose=frame(shipCentre(ship),direction,shipPoints(ship),lens);
+      pose=shipFrame(ship,enemy,lens);
     }else{
       pose=battleFrame(ship,enemy,lens);
       if(mode==='impact'){
@@ -6658,7 +6670,7 @@ function createDuelCompartments(T,built,id){
       const blocked=doctrineBusy||battleBusy||cutaway||!!blastPreview;cameraModeInput.disabled=blocked;cameraShipInput.disabled=blocked||cameraMode==='orbit';
       observerZoomControls.hidden=!observerActive();observerZoomIn.disabled=blocked||observerZoom<=.600001;observerZoomOut.disabled=blocked||observerZoom>=2.199999;observerZoomReset.disabled=blocked;observerZoomValue.textContent=Math.round(100/observerZoom)+'%';stage.dataset.observerZoom=String(observerZoom);
       const name=observerShip==='iowa'?'아이오와':'야마토';
-      cameraNote.textContent=blastPreview?'유폭 연출 보기 · 돌아오면 관찰 시점을 복원합니다.':cutaway?'피해 구획 보기 · 원래 화면으로 돌아오면 관찰 시점을 복원합니다.':cameraMode==='battle'?'적 방향을 향해 함선과 발사 흐름을 관찰합니다. 휠·줌 버튼은 추적 유지 · 드래그는 자유 관찰':cameraMode==='ship'?'함선의 항로와 선회를 따라갑니다. 휠·줌 버튼은 추적 유지 · 드래그는 자유 관찰':cameraMode==='impact'?(observerFrame?.phase==='incoming'?'접근탄 추적 · ':observerFrame?.phase==='impact'?'탄착 관찰 · ':'접근탄 대기 · ')+name+' · 휠·줌은 추적 유지 · 드래그는 자유 관찰':'드래그로 회전 · 휠로 확대/축소';
+      cameraNote.textContent=blastPreview?'유폭 연출 보기 · 돌아오면 관찰 시점을 복원합니다.':cutaway?'피해 구획 보기 · 원래 화면으로 돌아오면 관찰 시점을 복원합니다.':cameraMode==='battle'?'적 방향을 향해 함선과 발사 흐름을 관찰합니다. 휠·줌 버튼은 추적 유지 · 드래그는 자유 관찰':cameraMode==='ship'?'포구 너머 실제 적 함선을 함께 따라봅니다. 멀수록 작고 흐릿하게 보입니다. 휠·줌 버튼은 추적 유지 · 드래그는 자유 관찰':cameraMode==='impact'?(observerFrame?.phase==='incoming'?'접근탄 추적 · ':observerFrame?.phase==='impact'?'탄착 관찰 · ':'접근탄 대기 · ')+name+' · 휠·줌은 추적 유지 · 드래그는 자유 관찰':'드래그로 회전 · 휠로 확대/축소';
       Object.assign(stage.dataset,{cameraMode,cameraShip:observerShip,cameraEvent:observerActive()?observerFrame?.eventId||'':'',cameraPhase:observerActive()?observerFrame?.phase||'waiting':'manual',cameraObserverPosition:observerActive()?camera.position.toArray().join(','):'',cameraObserverTarget:observerActive()?controls.target.toArray().join(','):''});
     }
     function applyObserverCamera(){
@@ -6829,7 +6841,23 @@ function createDuelCompartments(T,built,id){
     controls.addEventListener('start',()=>{cameraAnimation=null;if(observerActive()){cameraMode='orbit';observerFrame=null;controls.enableDamping=true;resetTracking();refreshObserverControls();persist();}});controls.addEventListener('change',()=>{dirty=true;});controls.addEventListener('end',()=>{if(config.combatModel==='fragile-maneuver')resetTracking();setTimeout(persist,200);});
     function resize(){const w=stage.clientWidth,h=stage.clientHeight;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();fit(false);}const observer=new ResizeObserver(resize);observer.observe(stage);
     setEnvironment();update();resize();if(damagePathExperiment){rememberExterior();cutaway=true;cutawayInput.checked=true;setSection();update();fit(false);}restore(window.openai?.widgetState);window.addEventListener('openai:set_globals',e=>{resolveTrajectoryTheme();if(e.detail?.globals?.widgetState)restore(e.detail.globals.widgetState);update(false);});loading.hidden=true;
-    function labelShips(){const w=stage.clientWidth,h=stage.clientHeight;for(const id of ['yamato','iowa']){const p=models[id].ship.localToWorld(new T.Vector3(0,cutaway&&focus===id?4:25,0)).project(camera),el=labels[id],show=(focus==='whole'||focus===id||observerActive()&&cameraMode==='battle')&&p.z>-1&&p.z<1&&(!observerActive()||Math.abs(p.x)<=1&&Math.abs(p.y)<=1);el.hidden=!show;if(show){el.style.left=Math.max(42,Math.min(w-42,(p.x*.5+.5)*w))+'px';el.style.top=Math.max(24,Math.min(h-8,(-p.y*.5+.5)*h))+'px';}}}
+    function labelShips(){
+      const w=stage.clientWidth,h=stage.clientHeight,auto=observerActive();
+      for(const id of ['yamato','iowa']){
+        const distant=auto&&id!==observerShip,p=models[id].ship.localToWorld(new T.Vector3(0,cutaway&&focus===id?4:distant?12:25,0)).project(camera),el=labels[id],show=(focus==='whole'||focus===id||auto)&&p.z>-1&&p.z<1&&(!auto||Math.abs(p.x)<=1&&Math.abs(p.y)<=1),name=id==='iowa'?'아이오와':'야마토',text=distant?'상대 · '+name+' · '+(snapshot.currentRangeKm||config.rangeKm).toFixed(1)+' km':name;
+        el.hidden=!show;el.dataset.distant=String(distant);
+        if(el.dataset.rawLabel!==text){el.dataset.rawLabel=text;el.textContent=text;}
+        if(distant)Object.assign(stage.dataset,{targetShip:id,targetInView:String(show),targetNdc:p.toArray().join(',')});
+        if(show){const x=(p.x*.5+.5)*w,y=(-p.y*.5+.5)*h;el.style.left=(distant?x:Math.max(42,Math.min(w-42,x)))+'px';el.style.top=(distant?y-12:Math.max(24,Math.min(h-8,y)))+'px';}
+      }
+      if(!auto){stage.dataset.targetShip='';stage.dataset.targetInView='false';stage.dataset.targetNdc='';}
+    }
+    function updateViewFog(){
+      if(!scene.fog)return;
+      const scale=observerActive()?Math.max(1,(snapshot.currentRangeKm||config.rangeKm)*duel.initialConfig.displayUnitsPerMeter):focus==='whole'?Math.max(1,camera.position.distanceTo(controls.target)/800):1,night=config.visibility==='night',haze=config.visibility==='haze';
+      scene.fog.near=(night?250:haze?180:620)*scale;scene.fog.far=(night?1000:haze?800:1800)*scale;
+      Object.assign(stage.dataset,{viewFogNear:String(scene.fog.near),viewFogFar:String(scene.fog.far)});
+    }
     function updateWorldCamera(){
       const metric=config.coordinateModel==='metric-scale';
       if(metric){
@@ -6843,7 +6871,7 @@ function createDuelCompartments(T,built,id){
     }
     function renderScene(){
       applyObserverCamera();refreshObserverControls();
-      updateWorldCamera();
+      updateWorldCamera();updateViewFog();
       const original=camera.quaternion.clone();let pitch=0,yaw=0;
       if(hasRun&&!reduced&&!cutaway&&!blastPreview&&!cameraAnimation&&focus!=='whole'){
         const s=snapshot.ships[focus],motion=s?.impactMotion,distance=camera.position.distanceTo(new T.Vector3(...s.renderPosition)),proximity=T.MathUtils.clamp(260/Math.max(1,distance),.15,1);
@@ -6856,8 +6884,8 @@ function createDuelCompartments(T,built,id){
     function renderOpponentView(){
       const visible=!cutaway&&!blastPreview&&focus!=='whole';opponentView.hidden=!visible;stage.dataset.opponentVisible=String(visible);
       if(!visible){stage.dataset.opponentShip='';return;}
-      const id=focus==='iowa'?'yamato':'iowa',ship=snapshot.ships[id],name=id==='iowa'?'아이오와':'야마토',title='상대 · '+name+(ship.status==='침몰'?' · 침몰':ship.defeated?' · 전투 불능':'');
-      if(opponentTitle.dataset.title!==title){opponentTitle.dataset.title=title;opponentTitle.textContent=title;opponentView.setAttribute('aria-label','상대 함선 관찰 · '+name);}stage.dataset.opponentShip=id;
+      const id=focus==='iowa'?'yamato':'iowa',ship=snapshot.ships[id],name=id==='iowa'?'아이오와':'야마토',title='상대 확대 · '+name+(ship.status==='침몰'?' · 침몰':ship.defeated?' · 전투 불능':'');
+      if(opponentTitle.dataset.title!==title){opponentTitle.dataset.title=title;opponentTitle.textContent=title;opponentView.setAttribute('aria-label','상대 함선 확대 보기 · '+name);}stage.dataset.opponentShip=id;
       const frameRect=stage.getBoundingClientRect(),rect=opponentView.getBoundingClientRect(),w=rect.width,h=rect.height;
       if(!(w>0&&h>0))return;
       const pose=observerCamera.sample({mode:'ship',ship:id,state:snapshot,events:duel.events,time:clock,aspect:w/h,fov:35,reduced:true,zoom:1});if(!pose)return;
@@ -6876,7 +6904,7 @@ function createDuelCompartments(T,built,id){
       if(playing&&!document.hidden){if(blastPreview){blastPreview.elapsed=Math.min(24,blastPreview.elapsed+dt*speed);update();if(blastPreview.elapsed>=24){playing=false;updateStatus();persist();}}else{clock=Math.min(duel.duration,clock+dt*speed);update();if(clock>=duel.duration){playing=false;updateStatus();persist();}}}
       else if(!hasRun&&!reduced&&!document.hidden&&!cutaway){oceanOffset+=dt/.16;update(false);}
       if(cameraAnimation){const a=Math.min(1,(now-cameraAnimation.start)/400),b=a*a*(3-2*a);camera.position.lerpVectors(cameraAnimation.from,cameraAnimation.to,b);controls.target.lerpVectors(cameraAnimation.fromTarget,cameraAnimation.at,b);dirty=true;if(a===1){cameraAnimation=null;persist();}}
-      controls.update();if(dirty){if(scene.fog){const scale=observerActive()&&cameraMode==='battle'?Math.max(1,(snapshot.currentRangeKm||config.rangeKm)*1000*duel.initialConfig.displayUnitsPerMeter/1000):focus==='whole'?Math.max(1,camera.position.distanceTo(controls.target)/800):1,night=config.visibility==='night',haze=config.visibility==='haze';scene.fog.near=(night?250:haze?180:620)*scale;scene.fog.far=(night?1000:haze?800:1800)*scale;}sky.position.copy(camera.position);renderScene();stage.dataset.renderCalls=String(renderer.info.render.calls);stage.dataset.cameraDistance=String(camera.position.distanceTo(controls.target));dirty=false;}
+      controls.update();if(dirty){sky.position.copy(camera.position);renderScene();stage.dataset.renderCalls=String(renderer.info.render.calls);stage.dataset.cameraDistance=String(camera.position.distanceTo(controls.target));dirty=false;}
     }
     renderer.domElement.addEventListener('webglcontextlost',e=>{e.preventDefault();playing=false;loading.textContent='3D 화면 연결이 끊겼습니다. 다시 열면 복구됩니다.';loading.hidden=false;loading.setAttribute('role','alert');});tick(performance.now());
   }catch(e){loading.hidden=false;loading.textContent=e.message||'교전 모형을 표시하지 못했습니다.';loading.setAttribute('role','alert');console.error(e);}
