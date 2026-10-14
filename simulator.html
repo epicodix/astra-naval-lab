@@ -7954,6 +7954,7 @@ function createDuelCompartments(T,built,id){
     renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.6));renderer.outputEncoding=T.sRGBEncoding;renderer.toneMapping=T.ACESFilmicToneMapping;renderer.toneMappingExposure=1;renderer.physicallyCorrectLights=true;renderer.localClippingEnabled=true;
     renderer.shadowMap.enabled=true;renderer.shadowMap.type=T.PCFSoftShadowMap;renderer.setClearColor(0x000000,0);stage.appendChild(renderer.domElement);
     const scene=new T.Scene(),camera=new T.PerspectiveCamera(35,1,.1,4000),controls=new T.OrbitControls(camera,renderer.domElement);controls.enableDamping=true;controls.dampingFactor=.085;controls.enablePan=false;controls.rotateSpeed=.6;controls.minDistance=45;controls.maxDistance=1100;controls.maxPolarAngle=Math.PI/2+.02;
+    const horizonContact=new T.Points(new T.BufferGeometry().setFromPoints([new T.Vector3()]),new T.PointsMaterial({color:0x203139,size:3,sizeAttenuation:false,transparent:true,opacity:.85,depthTest:true,depthWrite:false,fog:true}));horizonContact.name=&#x27;Distant ship contact at actual world position&#x27;;horizonContact.frustumCulled=false;horizonContact.visible=false;horizonContact.renderOrder=10;scene.add(horizonContact);
     const skyMaterial=new T.ShaderMaterial({uniforms:{zenith:{value:new T.Color(0x567782)},horizon:{value:new T.Color(0xaabac0)}},side:T.BackSide,depthWrite:false,vertexShader:&#x27;varying vec3 vSky;void main(){vSky=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}&#x27;,fragmentShader:&#x27;uniform vec3 zenith;uniform vec3 horizon;varying vec3 vSky;void main(){float h=clamp(normalize(vSky).y,0.,1.);gl_FragColor=vec4(mix(horizon,zenith,pow(h,.52)),1.);\n#include &lt;tonemapping_fragment&gt;\n#include &lt;encodings_fragment&gt;\n}&#x27;});
     const sky=new T.Mesh(new T.SphereGeometry(1800,24,12),skyMaterial);sky.name=&#x27;Overcast maritime horizon&#x27;;sky.renderOrder=-100;sky.frustumCulled=false;scene.add(sky);
     scene.add(new T.HemisphereLight(0xe8f2fa,0x687579,.68));const key=new T.DirectionalLight(0xfff1dc,2);key.position.set(30,150,90);key.castShadow=true;key.shadow.mapSize.set(2048,2048);Object.assign(key.shadow.camera,{left:-180,right:180,top:180,bottom:-180,near:1,far:400});key.shadow.bias=-.0002;key.shadow.normalBias=.03;scene.add(key);scene.add(key.target);const fill=new T.DirectionalLight(0xc5dfed,.9);fill.position.set(-90,45,-140);scene.add(fill);
@@ -8629,9 +8630,21 @@ function createDuelCompartments(T,built,id){
     }
     function updateViewFog(){
       if(!scene.fog)return;
-      const scale=observerActive()?Math.max(1,(snapshot.currentRangeKm||config.rangeKm)*duel.initialConfig.displayUnitsPerMeter):focus===&#x27;whole&#x27;?Math.max(1,camera.position.distanceTo(controls.target)/800):1,night=config.visibility===&#x27;night&#x27;,haze=config.visibility===&#x27;haze&#x27;;
+      const exteriorShip=!cutaway&amp;&amp;!blastPreview&amp;&amp;focus!==&#x27;whole&#x27;,scale=exteriorShip?Math.max(1,(snapshot.currentRangeKm||config.rangeKm)*duel.initialConfig.displayUnitsPerMeter):focus===&#x27;whole&#x27;?Math.max(1,camera.position.distanceTo(controls.target)/800):1,night=config.visibility===&#x27;night&#x27;,haze=config.visibility===&#x27;haze&#x27;;
       scene.fog.near=(night?250:haze?180:620)*scale;scene.fog.far=(night?1000:haze?800:1800)*scale;
       Object.assign(stage.dataset,{viewFogNear:String(scene.fog.near),viewFogFar:String(scene.fog.far)});
+    }
+    function updateHorizonContact(){
+      horizonContact.visible=false;stage.dataset.horizonContactVisible=&#x27;false&#x27;;stage.dataset.horizonContactShip=&#x27;&#x27;;
+      if(cutaway||blastPreview||focus===&#x27;whole&#x27;)return;
+      const id=focus===&#x27;iowa&#x27;?&#x27;yamato&#x27;:&#x27;iowa&#x27;,ship=snapshot.ships[id],model=models[id].ship;
+      if(!ship||ship.status===&#x27;침몰&#x27;)return;
+      // This small depth-tested contact preserves a few-pixel silhouette. It
+      // stays on the real ship&#x27;s upper silhouette and never rescales its hull.
+      const at=model.localToWorld(new T.Vector3(0,30,0)),p=at.clone().project(camera),bottom=model.localToWorld(new T.Vector3(0,0,0)).project(camera),top=model.localToWorld(new T.Vector3(0,36,0)).project(camera),height=Math.abs(top.y-bottom.y)*stage.clientHeight*.5,depth=-at.clone().applyMatrix4(camera.matrixWorldInverse).z;
+      const visible=p.z&gt;-1&amp;&amp;p.z&lt;1&amp;&amp;Math.abs(p.x)&lt;1&amp;&amp;Math.abs(p.y)&lt;1&amp;&amp;height&lt;5&amp;&amp;depth&gt;0&amp;&amp;(!scene.fog||depth&lt;scene.fog.far);
+      horizonContact.position.copy(at);horizonContact.visible=visible;
+      Object.assign(stage.dataset,{horizonContactVisible:String(visible),horizonContactShip:id,horizonContactPixelHeight:String(height),horizonContactNdc:p.toArray().join(&#x27;,&#x27;),horizonContactWorld:at.toArray().join(&#x27;,&#x27;)});
     }
     function updateWorldCamera(){
       const metric=config.coordinateModel===&#x27;metric-scale&#x27;;
@@ -8654,7 +8667,8 @@ function createDuelCompartments(T,built,id){
         camera.quaternion.multiply(new T.Quaternion().setFromEuler(new T.Euler(pitch,yaw,0,&#x27;XYZ&#x27;)));camera.updateMatrixWorld(true);
       }
       stage.dataset.cameraImpact=String(Math.hypot(pitch,yaw));
-      try{renderer.render(scene,camera);labelShips();renderOpponentView();}finally{camera.quaternion.copy(original);camera.updateMatrixWorld(true);}
+      updateHorizonContact();const contactVisible=horizonContact.visible;
+      try{renderer.render(scene,camera);labelShips();horizonContact.visible=false;renderOpponentView();}finally{horizonContact.visible=contactVisible;camera.quaternion.copy(original);camera.updateMatrixWorld(true);}
     }
     function renderOpponentView(){
       const visible=!cutaway&amp;&amp;!blastPreview&amp;&amp;focus!==&#x27;whole&#x27;;opponentView.hidden=!visible;stage.dataset.opponentVisible=String(visible);
