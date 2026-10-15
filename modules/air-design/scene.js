@@ -10,6 +10,11 @@ const copy = {
 Object.assign(copy.ko, {trial:'어뢰 시험',trialTitle:'투하 → 입수 → 항주 → 명중',trialDescription:'저공에서 분리한 어뢰가 수중으로 진입해 고정 시험 표적을 향해 나아갑니다.',launch:'투하부터 다시 보기',jumpToPhase:'장면 바로 보기',release:'투하',waterEntry:'입수',running:'수중 항주',hit:'명중',clearWater:'수중 관찰용 투명 수면',trialNote:'가상 어뢰 시험 · 미터/초 기준 · 직진 항주',autoCamera:'자동 연출',torpedoCamera:'어뢰 근접',targetCamera:'표적 관찰',overviewCamera:'전체 항로',playbackSpeed:'재생 속도',phase:'진행 단계',torpedoSpeed:'어뢰 속도',depth:'수심',distanceToTarget:'표적까지',trialReadout:'어뢰 시험 상태',approachPhase:'저공 접근',fallingPhase:'분리 · 자유 낙하',entryPhase:'수면 진입',runningPhase:'수중 추진',hitPhase:'표적 접촉 · 폭발',trialHint:'장면별 관찰 · 휠로 확대 · 드래그로 자유 관찰',clearWaterStatus:'투명 수면 · 수중 몸체 관찰',opaqueWaterStatus:'일반 수면 · 항적 관찰'});
 Object.assign(copy.en, {trial:'Torpedo trial',trialTitle:'Release → Entry → Run → Hit',trialDescription:'Watch a low-altitude release, water entry and straight underwater run into a fixed test target.',launch:'Replay from release',jumpToPhase:'Jump to a scene',release:'Release',waterEntry:'Water entry',running:'Underwater run',hit:'Impact',clearWater:'Transparent water for inspection',trialNote:'Fictional trial · metres / seconds · straight running',autoCamera:'Auto director',torpedoCamera:'Follow torpedo',targetCamera:'Watch target',overviewCamera:'Whole course',playbackSpeed:'Playback speed',phase:'Phase',torpedoSpeed:'Torpedo speed',depth:'Depth',distanceToTarget:'Target distance',trialReadout:'Torpedo trial status',approachPhase:'Low approach',fallingPhase:'Release · Free fall',entryPhase:'Water entry',runningPhase:'Underwater propulsion',hitPhase:'Target contact · Detonation',trialHint:'Inspect each phase · Scroll to zoom · Drag for free orbit',clearWaterStatus:'Transparent surface · Underwater inspection',opaqueWaterStatus:'Normal surface · Follow the wake'});
 
+Object.assign(copy.ko,{attackFormation:'공격 편대',soloAttack:'단독 투하',formationAttack:'3기 편대 · 순차 투하',followMember:'추적 대상',followAll:'편대 전체',member1:'1번기 · 어뢰',member2:'2번기 · 어뢰',member3:'3번기 · 어뢰',memberStatus:'편대별 진행 상태',formationTrialDescription:'3기가 V자 편대로 접근해 차례로 투하합니다. 각각의 어뢰가 독립된 항적을 따라 표적을 노립니다.',salvoPhase:'연속 명중',hits:'명중',released:'투하',entries:'입수'});
+Object.assign(copy.en,{attackFormation:'Attack formation',soloAttack:'Solo release',formationAttack:'Three-aircraft staggered attack',followMember:'Follow subject',followAll:'Whole formation',member1:'Aircraft / torpedo 1',member2:'Aircraft / torpedo 2',member3:'Aircraft / torpedo 3',memberStatus:'Individual attack status',formationTrialDescription:'Three aircraft approach in a V and release in sequence. Each torpedo follows its own straight course into the target.',salvoPhase:'Sequential impacts',hits:'Hits',released:'Released',entries:'Entered water'});
+
+Object.assign(copy.ko,{meanSpeed:'이동 중 평균 속도',meanDepth:'평균 수심',nearestDistance:'최근접 표적 거리'});
+Object.assign(copy.en,{meanSpeed:'Mean moving speed',meanDepth:'Mean depth',nearestDistance:'Nearest target distance'});
 const root = document.getElementById('air-design');
 const stage = root.querySelector('[data-scene]');
 const params = new URLSearchParams(location.search);
@@ -41,8 +46,8 @@ async function boot() {
   try {
     const T = window.THREE;
     if (!T?.WebGLRenderer || !T.OrbitControls) throw new Error('Three.js or OrbitControls did not load');
-    const [{createAircraft}, {sampleFlight, clampFlightOptions, DURATION}, {createTorpedo}, {buildTorpedoRun,sampleTorpedo}, {createTorpedoTrialView}] = await Promise.all([
-      import('./aircraft-model.js'), import('./flight-motion.js'), import('./torpedo-model.js'), import('./torpedo-motion.js'), import('./torpedo-trial-view.js')
+    const [{createAircraft}, {sampleFlight, clampFlightOptions, DURATION}, {createTorpedo}, {buildTorpedoAttack,sampleAttack}, {createTorpedoTrialView}] = await Promise.all([
+      import('./aircraft-model.js'), import('./flight-motion.js'), import('./torpedo-model.js'), import('./torpedo-formation.js'), import('./torpedo-trial-view.js')
     ]);
     const renderer = new T.WebGLRenderer({antialias:true, alpha:false, powerPreference:'high-performance'});
     renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 1.5));
@@ -100,24 +105,26 @@ async function boot() {
     routeGeometry.setAttribute('position', new T.BufferAttribute(new Float32Array(routeCount*3),3).setUsage(T.DynamicDrawUsage));
     const route = new T.Line(routeGeometry, new T.LineBasicMaterial({color:0xddb98f,transparent:true,opacity:.42,depthWrite:false})); route.visible = false; scene.add(route);
     const trialView=createTorpedoTrialView(T);scene.add(trialView.group);trialView.group.visible=false;
-    const launchedTorpedo=createTorpedo(T);scene.add(launchedTorpedo.group);launchedTorpedo.group.visible=false;
-    const trialReleaseTime=2, trialAircraftOptions={path:'level',formation:'solo',speedMps:90,altitudeM:40,bankDeg:0};
+    const launchedTorpedoes=Array.from({length:3},()=>createTorpedo(T));launchedTorpedoes.forEach(built=>{scene.add(built.group);built.group.visible=false;});
+    const attacks=Object.fromEntries(['solo','vee'].map(formation=>[formation,buildTorpedoAttack({formation,hardpointLocal:primary.hardpointLocal,target:trialView.targetBounds})]));
     const smooth=value=>{const q=Math.max(0,Math.min(1,value));return q*q*(3-2*q);};
-    function trialAircraftPose(time){
-      const pose=sampleFlight(time,trialAircraftOptions,0),u=Math.max(0,Math.min(1,(time-3)/7));
-      pose.position[1]+=32*smooth(u);pose.velocity[1]=u>0&&u<1?32*6*u*(1-u)/7:0;
-      pose.pitchRad=Math.atan2(pose.velocity[1],90);pose.speedMps=Math.hypot(...pose.velocity);pose.altitudeM=pose.position[1];return pose;
-    }
-    function mountPose(time){const pose=trialAircraftPose(time),q=new T.Quaternion().setFromEuler(new T.Euler(pose.rollRad,pose.yawRad,pose.pitchRad,'YZX')),position=new T.Vector3(...primary.hardpointLocal).applyQuaternion(q).add(new T.Vector3(...pose.position));return {position:position.toArray(),quaternion:q.toArray()};}
-    const releasePose=mountPose(trialReleaseTime),before=mountPose(trialReleaseTime-.001),after=mountPose(trialReleaseTime+.001);
-    const trialRun=buildTorpedoRun({release:{time:trialReleaseTime,...releasePose,velocity:after.position.map((v,i)=>(v-before.position[i])/.002)},waterY:0,speedMps:24,depthM:2,target:trialView.targetBounds});
-    const courseGeometry=new T.BufferGeometry().setFromPoints(Array.from({length:160},(_,i)=>new T.Vector3(...sampleTorpedo(trialReleaseTime+(trialRun.contact.time-trialReleaseTime)*i/159,trialRun).position)));
-    const trialCourse=new T.Line(courseGeometry,new T.LineDashedMaterial({color:0x9bb8be,transparent:true,opacity:.22,dashSize:6,gapSize:5,depthWrite:false}));trialCourse.computeLineDistances();trialCourse.visible=false;scene.add(trialCourse);
+    const trialCourses=attacks.vee.members.map((member,index)=>{
+      const positions=Array.from({length:160},(_,i)=>new T.Vector3(...sampleAttack(member.releaseTime+(member.run.contact.time-member.releaseTime)*i/159,attacks.vee).members[index].torpedo.position));
+      const line=new T.Line(new T.BufferGeometry().setFromPoints(positions),new T.LineDashedMaterial({color:[0x9bb8be,0xcfb682,0x8cbda7][index],transparent:true,opacity:.35,dashSize:6,gapSize:5,depthWrite:false}));line.computeLineDistances();line.visible=false;scene.add(line);return line;
+    });
     const initialMode = ['flight','torpedo'].includes(params.get('mode')) ? params.get('mode') : 'model';
-    const state = {mode:initialMode, time:0, playing:false, part:'whole', angle:'angle', cameraMode:initialMode==='model'?'orbit':initialMode==='flight'?'track':'auto', cameraByMode:{model:'orbit',flight:'track',torpedo:'auto'}, gearByMode:{model:true,flight:false,torpedo:false}, zoom:1, showRoute:true,clearWater:true,rate:1,
-      options:clampFlightOptions({path:params.get('path') || 'level',formation:params.get('formation') || 'solo',speedMps:90,altitudeM:120,bankDeg:25})};
+    const state = {mode:initialMode, time:0, playing:false, part:'whole', angle:'angle', cameraMode:initialMode==='model'?'orbit':initialMode==='flight'?'track':'auto', cameraByMode:{model:'orbit',flight:'track',torpedo:'auto'}, gearByMode:{model:true,flight:false,torpedo:false}, zoom:1, showRoute:true,clearWater:true,rate:1,trialFormation:params.get('formation')==='vee'?'vee':'solo',followMember:'all',
+      options:clampFlightOptions({path:params.get('path') || 'level',formation:initialMode==='flight'?(params.get('formation') || 'solo'):'solo',speedMps:90,altitudeM:120,bankDeg:25})};
     const up = new T.Vector3(0,1,0), worldBox = new T.Box3(), currentCentre = new T.Vector3(), previousCentre = new T.Vector3();
-    let currentPoses = [], currentTorpedo=null, trialStats=null, dirty = true, needFit = true, lastFrame = performance.now(), hasCentre = false;
+    let currentPoses = [], currentTorpedo=null, currentAttack=null, trialStats=null, dirty = true, needFit = true, lastFrame = performance.now(), hasCentre = false;
+    const activeAttack=()=>attacks[state.trialFormation];
+    const trialDuration=()=>activeAttack().duration;
+    const focusedMembers=()=>state.followMember==='all'?currentAttack.members:[currentAttack.members[Number(state.followMember)]||currentAttack.members[0]];
+    function trialPhase(){
+      if(state.followMember!=='all')return currentTorpedo.phase;
+      const c=currentAttack.counts;
+      return c.hit&&c.hit<currentAttack.members.length?'salvo':c.falling?'falling':c.entry?'entry':c.running?'running':c.hit?'hit':'approach';
+    }
     const partKeys = {whole:'whole',body:'fuselage',fuselage:'fuselage',wings:'wings',engine:'engine',cockpit:'cockpit',tail:'tail',torpedo:'torpedo',gear:'gear'};
     const partObject = id => id==='whole' ? primary.group : primary.parts[id] || (id==='body' ? primary.parts.fuselage : null);
     element('input[data-time]').max = String(DURATION);
@@ -127,7 +134,10 @@ async function boot() {
       const flight = state.mode === 'flight',trial=state.mode==='torpedo';
       element('[data-model-panel]').hidden = flight||trial; element('[data-flight-panel]').hidden = !flight; element('[data-model-readout]').hidden = flight||trial; element('[data-flight-readout]').hidden = !flight; element('[data-route-field]').hidden = !flight;
       element('[data-trial-panel]').hidden=!trial;element('[data-trial-readout]').hidden=!trial;element('[data-trial-overlay]').hidden=!trial;element('[data-trial-speed]').hidden=!trial;element('[data-gear-field]').hidden=trial;element('.equipment-panel').hidden=trial;
-      root.querySelectorAll('option[data-trial-camera]').forEach(node=>{node.hidden=!trial;node.disabled=!trial;});element('option[value=track]').hidden=trial;element('option[value=track]').disabled=trial;element('input[data-time]').max=String(trial?trialRun.duration:DURATION);
+      root.querySelectorAll('option[data-trial-camera]').forEach(node=>{node.hidden=!trial;node.disabled=!trial;});element('option[value=track]').hidden=trial;element('option[value=track]').disabled=trial;element('input[data-time]').max=String(trial?trialDuration():DURATION);
+      element('select[data-trial-formation]').value=state.trialFormation;element('select[data-follow-member]').value=state.followMember;
+      element('[data-follow-field]').hidden=state.trialFormation!=='vee';element('[data-member-status]').hidden=state.trialFormation!=='vee';
+      element('[data-trial-panel] .trial-description').textContent=text(state.trialFormation==='vee'?'formationTrialDescription':'trialDescription');
       element('input[data-gear]').checked = state.gearByMode[state.mode]; element('select[data-camera-mode]').value = state.cameraMode;
       root.querySelectorAll('button[data-mode]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.mode===state.mode)));
       root.querySelectorAll('button[data-part]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.part===state.part)));
@@ -145,15 +155,23 @@ async function boot() {
       element('[data-speed-output]').textContent = state.options.speedMps.toFixed(0) + ' m/s'; element('[data-altitude-output]').textContent = state.options.altitudeM.toFixed(0) + ' m'; element('[data-bank-output]').textContent = state.options.bankDeg.toFixed(0) + '°';
       const mins = Math.floor(state.time/60), seconds = state.time%60; element('[data-time-output]').textContent = String(mins).padStart(2,'0') + ':' + seconds.toFixed(1).padStart(4,'0'); element('input[data-time]').value = String(state.time);
       if(state.mode==='torpedo'&&currentTorpedo){
-        const phaseLabel=text(currentTorpedo.phase+'Phase'),speed=Math.hypot(...currentTorpedo.velocity),depth=Math.max(0,-currentTorpedo.position[1]);
-        element('[data-trial-phase]').textContent=phaseLabel;element('[data-phase-readout]').textContent=phaseLabel;element('[data-trial-status]').textContent=text(state.clearWater?'clearWaterStatus':'opaqueWaterStatus');
-        element('[data-torpedo-speed]').textContent=(currentTorpedo.phase==='hit'?0:speed).toFixed(1)+' m/s';element('[data-torpedo-depth]').textContent=depth.toFixed(1)+' m';element('[data-target-distance]').textContent=Math.max(0,currentTorpedo.distanceToTarget).toFixed(0)+' m';
-        const phaseButton={approach:'release',falling:'release',entry:'entry',running:'running',hit:'hit'}[currentTorpedo.phase];root.querySelectorAll('button[data-phase]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.phase===phaseButton)));
+        const all=state.trialFormation==='vee'&&state.followMember==='all';
+        for(const [key,plural] of [['torpedoSpeed','meanSpeed'],['depth','meanDepth'],['distanceToTarget','nearestDistance']])element(`[data-trial-readout] [data-i18n="${key}"]`).textContent=text(all?plural:key);
+        const phase=trialPhase(),members=focusedMembers(),pending=members.filter(m=>m.torpedo.phase!=='hit'),moving=pending.length?pending:members;
+        const speed=moving.reduce((sum,m)=>sum+Math.hypot(...m.torpedo.velocity),0)/moving.length,depth=members.reduce((sum,m)=>sum+Math.max(0,-m.torpedo.position[1]),0)/members.length;
+        const distance=pending.length?Math.min(...pending.map(m=>m.torpedo.distanceToTarget)):0,hits=currentAttack.counts.hit,count=currentAttack.members.length;
+        const phaseLabel=text(phase+'Phase');
+        element('[data-trial-phase]').textContent=phaseLabel;element('[data-phase-readout]').textContent=phaseLabel;
+        const info=state.trialFormation==='vee'?`${text('released')} ${count-currentAttack.counts.approach}/${count} · ${text('hits')} ${hits}/${count} · `:'';
+        element('[data-trial-status]').textContent=info+text(state.clearWater?'clearWaterStatus':'opaqueWaterStatus');
+        element('[data-torpedo-speed]').textContent=speed.toFixed(1)+' m/s';element('[data-torpedo-depth]').textContent=depth.toFixed(1)+' m';element('[data-target-distance]').textContent=Math.max(0,distance).toFixed(0)+' m';
+        const phaseButton={approach:'release',falling:'release',entry:'entry',running:'running',salvo:'hit',hit:'hit'}[phase];root.querySelectorAll('button[data-phase]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.phase===phaseButton)));
+        currentAttack.members.forEach(member=>{const i=member.index,torp=member.torpedo;element(`[data-member-phase="${i}"]`).textContent=text(torp.phase+'Phase');element(`[data-member-distance="${i}"]`).textContent=Math.max(0,torp.distanceToTarget).toFixed(0)+' m';element(`[data-member-phase="${i}"]`).parentElement.dataset.focused=String(state.followMember===String(i));});
       }
       const pose = currentPoses[0]; if (pose) { element('[data-actual-speed]').textContent = pose.speedMps.toFixed(1) + ' m/s'; element('[data-actual-altitude]').textContent = pose.position[1].toFixed(1) + ' m'; element('[data-actual-bank]').textContent = (pose.rollRad*180/Math.PI).toFixed(1) + '°'; }
       element('dd[data-aircraft-count]').textContent = String(state.options.formation==='vee'?3:1);
-      Object.assign(stage.dataset,{time:state.time.toFixed(4),playing:String(state.playing),mode:state.mode,path:state.options.path,formation:state.options.formation,gear:String(state.gearByMode[state.mode]),aircraftCount:String(state.mode==='flight'&&state.options.formation==='vee'?3:1),flightPoses:JSON.stringify(currentPoses),torpedo:state.mode==='torpedo'?JSON.stringify(currentTorpedo):'',torpedoEvents:JSON.stringify({release:trialRun.release,entry:trialRun.entry,contact:trialRun.contact,duration:trialRun.duration}),clearWater:String(state.clearWater),part:state.part,cameraMode:state.cameraMode});
-      Object.assign(stage.dataset,{mountedTorpedoVisible:String(primary.mountedTorpedo.visible),releasedTorpedoVisible:String(launchedTorpedo.group.visible),trialEffects:JSON.stringify(trialStats)});
+      Object.assign(stage.dataset,{time:state.time.toFixed(4),playing:String(state.playing),mode:state.mode,path:state.options.path,formation:state.options.formation,gear:String(state.gearByMode[state.mode]),aircraftCount:String(state.mode==='torpedo'?activeAttack().members.length:state.mode==='flight'&&state.options.formation==='vee'?3:1),flightPoses:JSON.stringify(currentPoses),torpedo:state.mode==='torpedo'?JSON.stringify(currentTorpedo):'',torpedoEvents:JSON.stringify(activeAttack().members.map(m=>({index:m.index,release:m.run.release,entry:m.run.entry,contact:m.run.contact,duration:m.run.duration}))),clearWater:String(state.clearWater),part:state.part,cameraMode:state.cameraMode});
+      Object.assign(stage.dataset,{mountedTorpedoVisible:String(primary.mountedTorpedo.visible),releasedTorpedoVisible:String(launchedTorpedoes.some(built=>built.group.visible)),trialEffects:JSON.stringify(trialStats),trialFormation:state.trialFormation,followMember:state.followMember,trialMembers:JSON.stringify(currentAttack?.members.map(m=>({index:m.index,releaseTime:m.releaseTime,torpedo:m.torpedo,aircraft:m.aircraft}))),mountedTorpedoes:JSON.stringify(aircraft.map(built=>built.mountedTorpedo.visible))});
     }
     function rebuildRoute() {
       const positions = routeGeometry.attributes.position;
@@ -162,44 +180,45 @@ async function boot() {
     }
     function applyGear() { aircraft.forEach(built=>built.setGear(state.gearByMode[state.mode])); }
     function sampleScene() {
-      const flight = state.mode==='flight',trial=state.mode==='torpedo',count = flight&&state.options.formation==='vee'?3:1; currentPoses=[];
+      const flight=state.mode==='flight',trial=state.mode==='torpedo',attack=activeAttack(),count=trial?attack.members.length:flight&&state.options.formation==='vee'?3:1;currentPoses=[];
+      currentAttack=trial?sampleAttack(state.time,attack):null;
       for(let i=0;i<aircraft.length;i++){
         const built=aircraft[i];built.group.visible=i<count;built.animate(state.time);
-        if((flight||trial)&&i<count){const pose=trial?trialAircraftPose(state.time):sampleFlight(state.time,state.options,i);currentPoses.push(pose);built.group.position.fromArray(pose.position);built.group.rotation.set(pose.rollRad,pose.yawRad,pose.pitchRad,'YZX');}
+        if((flight||trial)&&i<count){const pose=trial?currentAttack.members[i].aircraft:sampleFlight(state.time,state.options,i);currentPoses.push(pose);built.group.position.fromArray(pose.position);built.group.rotation.set(pose.rollRad,pose.yawRad,pose.pitchRad,'YZX');}
         else{built.group.position.set(0,modelLift,0);built.group.rotation.set(0,0,0,'YZX');}
-        built.setTorpedoPresent(!trial||state.time<trialRun.release.time);built.group.updateMatrixWorld(true);
+        built.setTorpedoPresent(!trial||i>=count||state.time<attack.members[i].releaseTime);built.group.updateMatrixWorld(true);
+        const store=launchedTorpedoes[i],member=currentAttack?.members[i],torp=member?.torpedo;
+        store.group.visible=trial&&!!torp&&torp.phase!=='approach'&&torp.phase!=='hit';
+        if(trial&&member){store.group.position.fromArray(torp.position);store.group.quaternion.fromArray(torp.quaternion);store.animate(Math.max(0,state.time-member.run.entry.time));}
+        trialCourses[i].visible=trial&&i<count&&state.cameraMode==='overview';
       }
-      currentTorpedo=trial?sampleTorpedo(state.time,trialRun):null;
-      if(trial&&currentTorpedo.phase==='approach'){const mounted=mountPose(state.time);currentTorpedo={...currentTorpedo,position:mounted.position,quaternion:mounted.quaternion,velocity:currentPoses[0].velocity,distanceToTarget:Math.max(0,trialRun.contact.position[0]-mounted.position[0]-2.22)};}
-      trialView.group.visible=trial;launchedTorpedo.group.visible=trial&&currentTorpedo.phase!=='approach'&&currentTorpedo.phase!=='hit';trialCourse.visible=trial&&state.cameraMode==='overview';
-      if(trial){launchedTorpedo.group.position.fromArray(currentTorpedo.position);launchedTorpedo.group.quaternion.fromArray(currentTorpedo.quaternion);launchedTorpedo.animate(Math.max(0,state.time-trialRun.entry.time));trialStats=trialView.update(state.time,currentTorpedo,trialRun);}else trialStats=null;
+      currentTorpedo=trial?(currentAttack.members[Number(state.followMember)]||currentAttack.members[0]).torpedo:null;
+      trialView.group.visible=trial;
+      trialStats=trial?trialView.update(state.time,currentAttack.members.map(m=>m.torpedo),attack.members.map(m=>m.run)):null;
       oceanMaterial.transparent=trial&&state.clearWater;oceanMaterial.depthWrite=!(trial&&state.clearWater);oceanMaterial.uniforms.uAlpha.value=trial&&state.clearWater ? .52 : 1;
-      waterDepth.visible=trial&&state.clearWater;
-      ground.visible=!flight&&!trial;ocean.visible=flight||trial;sky.visible=flight||trial;route.visible=flight&&state.showRoute;oceanMaterial.uniforms.uTime.value=state.time;
+      waterDepth.visible=trial&&state.clearWater;ground.visible=!flight&&!trial;ocean.visible=flight||trial;sky.visible=flight||trial;route.visible=flight&&state.showRoute;oceanMaterial.uniforms.uTime.value=state.time;
       scene.background=new T.Color(flight||trial?0x8fa5ab:0x111e28);scene.fog=flight||trial?new T.Fog(0x8fa5ab,14000,60000):new T.Fog(0x111e28,48,150);
       refreshReadouts();
+    }
+    function memberCameraBox(member){
+      const torp=member.torpedo,run=member.run,point=new T.Vector3(...torp.position),age=torp.effectAge||0,box=new T.Box3();
+      if(state.cameraMode==='torpedo')return box.setFromCenterAndSize(point,new T.Vector3(14,10,12));
+      if(state.cameraMode==='orbit')return box.setFromCenterAndSize(point,new T.Vector3(18,12,16));
+      if(state.time<run.entry.time){
+        const fallingBox=new T.Box3().setFromCenterAndSize(point,new T.Vector3(22,18,18));box.setFromObject(aircraft[member.index].group);
+        if(state.time>=run.release.time){box.expandByPoint(point);const blend=smooth((state.time-run.release.time)/1.2);box.min.lerp(fallingBox.min,blend);box.max.lerp(fallingBox.max,blend);}return box;
+      }
+      const nearing=smooth((125-torp.distanceToTarget)/125),impact=torp.phase==='hit',closer=impact?smooth(age/.65):0,size=18+nearing*92-closer*50;
+      const centre=point.clone();centre.y=impact?2+smooth(age/.8)*14:2;box.setFromCenterAndSize(centre,new T.Vector3(size,12+nearing*42,(14+nearing*90)*(1-.4*closer)));
+      const entryAge=state.time-run.entry.time;if(entryAge<2.8){const weight=1-smooth((entryAge-2.2)/.6),splash=new T.Vector3(...run.entry.position).lerp(point,1-weight);splash.y=10*weight;box.expandByPoint(splash);}return box;
     }
     function boundsForView() {
       worldBox.makeEmpty();
       if(state.mode==='model')worldBox.setFromObject(partObject(state.part)||primary.group);
       else if(state.mode==='torpedo'){
-        const point=new T.Vector3(...currentTorpedo.position),age=currentTorpedo.effectAge||0;
-        if(state.cameraMode==='overview'){worldBox.setFromCenterAndSize(new T.Vector3(425,10,0),new T.Vector3(940,100,160));}
-        else if(state.cameraMode==='target'){worldBox.setFromObject(trialView.targetGroup);worldBox.expandByPoint(new T.Vector3(843,55,0));}
-        else if(state.cameraMode==='torpedo'){worldBox.setFromCenterAndSize(point,new T.Vector3(14,10,12));}
-        else if(state.cameraMode==='orbit'){worldBox.setFromCenterAndSize(point,new T.Vector3(18,12,16));}
-        else {
-          if(state.time<trialRun.entry.time){
-            const fallingBox=new T.Box3().setFromCenterAndSize(point,new T.Vector3(22,18,18));
-            worldBox.setFromObject(primary.group);
-            if(state.time>=trialRun.release.time){worldBox.expandByPoint(point);const blend=smooth((state.time-trialRun.release.time)/1.2);worldBox.min.lerp(fallingBox.min,blend);worldBox.max.lerp(fallingBox.max,blend);}
-          }
-          else {const nearing=smooth((125-currentTorpedo.distanceToTarget)/125),impact=currentTorpedo.phase==='hit',closer=impact?smooth(age/.65):0,size=18+nearing*92-closer*50;
-            const centre=point.clone();centre.y=impact?2+smooth(age/.8)*14:2;worldBox.setFromCenterAndSize(centre,new T.Vector3(size,12+nearing*42,(14+nearing*90)*(1-.4*closer)));
-            const entryAge=state.time-trialRun.entry.time;
-            if(entryAge<2.8){const weight=1-smooth((entryAge-2.2)/.6),splash=new T.Vector3(...trialRun.entry.position).lerp(point,1-weight);splash.y=10*weight;worldBox.expandByPoint(splash);}
-          }
-        }
+        if(state.cameraMode==='overview'){worldBox.setFromCenterAndSize(new T.Vector3(425,10,0),new T.Vector3(1000,110,190));}
+        else if(state.cameraMode==='target'){worldBox.setFromObject(trialView.targetGroup);worldBox.expandByPoint(new T.Vector3(843,40,0));}
+        else for(const member of focusedMembers())worldBox.union(memberCameraBox(member));
       }
       else for(const built of aircraft)if(built.group.visible)worldBox.union(new T.Box3().setFromObject(built.group));
       if(worldBox.isEmpty())worldBox.setFromCenterAndSize(primary.group.position,new T.Vector3(12,4,15));
@@ -234,7 +253,7 @@ async function boot() {
     }
     function requestFrame(fit=false) { dirty=true;if(fit)needFit=true; }
     function setMode(mode) {
-      if(mode===state.mode)return;state.cameraByMode[state.mode]=state.cameraMode;state.mode=mode;state.cameraMode=state.cameraByMode[mode];state.playing=false;state.zoom=1;hasCentre=false;if(mode==='torpedo')state.time=0;state.time=Math.min(state.time,mode==='torpedo'?trialRun.duration:DURATION);
+      if(mode===state.mode)return;state.cameraByMode[state.mode]=state.cameraMode;state.mode=mode;state.cameraMode=state.cameraByMode[mode];state.playing=false;state.zoom=1;hasCentre=false;if(mode==='torpedo')state.time=0;state.time=Math.min(state.time,mode==='torpedo'?trialDuration():DURATION);
       applyGear();sampleScene();refreshLabels();requestFrame(true);
     }
     root.querySelectorAll('button[data-mode]').forEach(button=>button.addEventListener('click',()=>setMode(button.dataset.mode)));
@@ -253,16 +272,22 @@ async function boot() {
     }
     element('select[data-path]').addEventListener('change',readOptions);element('select[data-formation]').addEventListener('change',readOptions);
     for(const selector of['input[data-speed]','input[data-altitude]','input[data-bank]'])element(selector).addEventListener('input',readOptions);
-    element('[data-play]').addEventListener('click',()=>{if(state.time>=(state.mode==='torpedo'?trialRun.duration:DURATION))state.time=0;state.playing=!state.playing;lastFrame=performance.now();sampleScene();refreshLabels();requestFrame();});
+    element('[data-play]').addEventListener('click',()=>{if(state.time>=(state.mode==='torpedo'?trialDuration():DURATION))state.time=0;state.playing=!state.playing;lastFrame=performance.now();sampleScene();refreshLabels();requestFrame();});
     element('[data-reset]').addEventListener('click',()=>{state.time=0;state.playing=false;hasCentre=false;sampleScene();refreshLabels();requestFrame(true);});
-    element('input[data-time]').addEventListener('input',event=>{state.time=Math.max(0,Math.min(state.mode==='torpedo'?trialRun.duration:DURATION,Number(event.target.value)||0));state.playing=false;sampleScene();refreshLabels();requestFrame(state.cameraMode!=='orbit');});
+    element('input[data-time]').addEventListener('input',event=>{state.time=Math.max(0,Math.min(state.mode==='torpedo'?trialDuration():DURATION,Number(event.target.value)||0));state.playing=false;sampleScene();refreshLabels();requestFrame(state.cameraMode!=='orbit');});
     renderer.domElement.addEventListener('pointerdown',()=>{if(state.cameraMode!=='orbit'){state.cameraMode='orbit';state.cameraByMode[state.mode]='orbit';controls.enableDamping=true;refreshLabels();requestFrame();}},true);
     renderer.domElement.addEventListener('wheel',event=>{if(state.cameraMode==='orbit')return;event.preventDefault();event.stopImmediatePropagation();state.zoom=Math.max(.55,Math.min(3.5,state.zoom*Math.exp(Math.max(-150,Math.min(150,event.deltaY))*.002)));requestFrame();},{capture:true,passive:false});
     element('[data-launch]').addEventListener('click',()=>{state.time=0;state.playing=true;state.cameraMode='auto';state.cameraByMode.torpedo='auto';state.zoom=1;hasCentre=false;lastFrame=performance.now();sampleScene();refreshLabels();requestFrame(true);});
+    element('select[data-trial-formation]').addEventListener('change',event=>{
+      state.trialFormation=event.target.value==='vee'?'vee':'solo';state.followMember='all';state.time=0;state.playing=false;state.cameraMode='auto';state.cameraByMode.torpedo='auto';state.zoom=1;hasCentre=false;
+      const url=new URL(location.href);url.searchParams.set('formation',state.trialFormation);history.replaceState(null,'',url);sampleScene();refreshLabels();requestFrame(true);
+    });
+    element('select[data-follow-member]').addEventListener('change',event=>{state.followMember=event.target.value;state.zoom=1;hasCentre=false;sampleScene();refreshLabels();requestFrame(true);});
     element('select[data-rate]').addEventListener('change',event=>{state.rate=Number(event.target.value)||1;});
     element('input[data-clear-water]').addEventListener('change',event=>{state.clearWater=event.target.checked;sampleScene();requestFrame();});
     root.querySelectorAll('button[data-phase]').forEach(button=>button.addEventListener('click',()=>{
-      const times={release:trialRun.release.time+.3,entry:trialRun.entry.time+.12,running:trialRun.entry.time+5,hit:trialRun.contact.time+.65};
+      const members=focusedMembers(),runs=members.map(m=>m.run),entry=Math.max(...runs.map(run=>run.entry.time)),contacts=runs.filter(run=>run.contact).map(run=>run.contact.time);
+      const times={release:Math.min(...runs.map(run=>run.release.time))+.3,entry:entry+.25,running:entry+4,hit:(contacts.length?Math.max(...contacts):entry+10)+.65};
       state.time=times[button.dataset.phase];state.playing=false;state.cameraMode='auto';state.cameraByMode.torpedo='auto';state.zoom=1;hasCentre=false;sampleScene();refreshLabels();requestFrame(true);
     }));
     controls.addEventListener('change',()=>requestFrame());
@@ -273,7 +298,7 @@ async function boot() {
     root.querySelectorAll('[data-controls]').forEach(node=>{node.inert=false;});element('[data-loading]').hidden=true;root.dataset.ready='true';
     function tick(now) {
       requestAnimationFrame(tick);const dt=Math.min(.1,Math.max(0,(now-lastFrame)/1000));lastFrame=now;
-      if(state.playing&&!document.hidden){const duration=state.mode==='torpedo'?trialRun.duration:DURATION;state.time=Math.min(duration,state.time+dt*(state.mode==='torpedo'?state.rate:1));sampleScene();dirty=true;if(state.time>=duration){state.playing=false;refreshLabels();}}
+      if(state.playing&&!document.hidden){const duration=state.mode==='torpedo'?trialDuration():DURATION;state.time=Math.min(duration,state.time+dt*(state.mode==='torpedo'?state.rate:1));sampleScene();dirty=true;if(state.time>=duration){state.playing=false;refreshLabels();}}
       if(dirty)updateCamera();controls.update();
       if(dirty){sky.position.copy(camera.position);renderer.render(scene,camera);Object.assign(stage.dataset,{cameraDistance:String(camera.position.distanceTo(controls.target)),cameraPosition:camera.position.toArray().join(','),cameraTarget:controls.target.toArray().join(','),renderCalls:String(renderer.info.render.calls),renderTriangles:String(renderer.info.render.triangles)});dirty=false;}
     }
