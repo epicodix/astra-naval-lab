@@ -73,16 +73,31 @@ export function createTorpedoTrialView(T) {
     const g = new T.BufferGeometry(); g.setAttribute('position', new T.Float32BufferAttribute(vertices, 3)); g.setAttribute('normal', new T.Float32BufferAttribute(normals, 3)); g.setIndex(indices); g.computeBoundingSphere();
     mesh(targetGroup, 'Batched trial barge fittings · ' + children.length + ' pieces', g, mat);
   }
-  const scar = new T.Group(); scar.name = 'Contact-only visual hull scuff'; scar.visible = false; targetGroup.add(scar);
+  // A formation still strikes one physical barge. Keep one contact mark per
+  // member so seeking backwards removes only marks whose events have not run.
   const scarGeometry = new T.CircleGeometry(1.55, 18), scarPositions = scarGeometry.attributes.position;
   for (let i = 1; i < scarPositions.count; i++) { const rough = .77 + noise(i + 811) * .23; scarPositions.setXY(i, scarPositions.getX(i) * rough, scarPositions.getY(i) * rough); }
   scarPositions.needsUpdate = true;
-  mesh(scar, 'Ragged dark underwater contact mark', scarGeometry, material(0x17262b, .94));
-  for (let i = 0; i < 3; i++) {
-    const plate = mesh(scar, 'Small visually buckled hull lip ' + i, new T.BoxGeometry(.16, 1.05 + i * .17, .06), darkMat, [-.63 + i * .57, .08 - i * .12, .045]); plate.rotation.z = -.27 + i * .21; plate.rotation.y = -.12 + i * .09;
-  }
+  const scarMaterial = material(0x17262b, .94);
+  const scars = Array.from({ length: 3 }, (_, member) => {
+    const scar = new T.Group(); scar.name = 'Contact-only visual hull scuff ' + (member + 1); scar.visible = false; targetGroup.add(scar);
+    mesh(scar, 'Ragged dark underwater contact mark', scarGeometry, scarMaterial);
+    for (let i = 0; i < 3; i++) {
+      const plate = mesh(scar, 'Small visually buckled hull lip ' + i, new T.BoxGeometry(.16, 1.05 + i * .17, .06), darkMat, [-.63 + i * .57, .08 - i * .12, .045]); plate.rotation.z = -.27 + i * .21; plate.rotation.y = -.12 + i * .09;
+    }
+    // The scar and its three tiny buckled lips share one draw per contact.
+    const vertices = [], normals = [], indices = []; let offset = 0;
+    for (const child of [...scar.children]) {
+      child.updateMatrix(); const g = child.geometry, p = g.attributes.position, n = g.attributes.normal, nm = new T.Matrix3().getNormalMatrix(child.matrix);
+      for (let i = 0; i < p.count; i++) { const v = new T.Vector3().fromBufferAttribute(p, i).applyMatrix4(child.matrix), normal = new T.Vector3().fromBufferAttribute(n, i).applyMatrix3(nm).normalize(); vertices.push(v.x, v.y, v.z); normals.push(normal.x, normal.y, normal.z); }
+      for (let i = 0; i < g.index.count; i++) indices.push(g.index.getX(i) + offset); offset += p.count; scar.remove(child);
+    }
+    const geometry = new T.BufferGeometry(); geometry.setAttribute('position', new T.Float32BufferAttribute(vertices, 3)); geometry.setAttribute('normal', new T.Float32BufferAttribute(normals, 3)); geometry.setIndex(indices); geometry.computeBoundingSphere();
+    mesh(scar, 'Batched ragged hull contact scar and lips', geometry, scarMaterial);
+    return scar;
+  });
   const effects = new T.Group(); effects.name = 'Causal torpedo-entry and target-contact effects'; group.add(effects);
-  const spriteCapacity = 176, spriteGeometry = new T.InstancedBufferGeometry();
+  const spriteCapacity = 360, spriteGeometry = new T.InstancedBufferGeometry();
   const quad = new T.PlaneGeometry(1, 1); spriteGeometry.index = quad.index; spriteGeometry.attributes.position = quad.attributes.position; spriteGeometry.attributes.uv = quad.attributes.uv;
   const centres = new T.InstancedBufferAttribute(new Float32Array(spriteCapacity * 3), 3), dimensions = new T.InstancedBufferAttribute(new Float32Array(spriteCapacity * 2), 2), tint = new T.InstancedBufferAttribute(new Float32Array(spriteCapacity * 3), 3), styles = new T.InstancedBufferAttribute(new Float32Array(spriteCapacity * 2), 2);
   spriteGeometry.setAttribute('aCentre', centres); spriteGeometry.setAttribute('aSize', dimensions); spriteGeometry.setAttribute('aTint', tint); spriteGeometry.setAttribute('aStyle', styles); spriteGeometry.instanceCount = 0;
@@ -95,7 +110,7 @@ export function createTorpedoTrialView(T) {
         #include <encodings_fragment>
       }` });
   const sprites = new T.Mesh(spriteGeometry, spriteMaterial); sprites.name = 'Pooled low spray, bubbles, blast mist and smoke'; sprites.frustumCulled = false; sprites.renderOrder = 4; effects.add(sprites);
-  const foamCapacity = 64, foamGeometry = new T.PlaneGeometry(2, 2), foamInfo = new T.InstancedBufferAttribute(new Float32Array(foamCapacity * 3), 3); foamGeometry.setAttribute('aInfo', foamInfo);
+  const foamCapacity = 160, foamGeometry = new T.PlaneGeometry(2, 2), foamInfo = new T.InstancedBufferAttribute(new Float32Array(foamCapacity * 3), 3); foamGeometry.setAttribute('aInfo', foamInfo);
   const foamMaterial = new T.ShaderMaterial({ transparent: true, depthWrite: false, side: T.DoubleSide,
     vertexShader: `attribute vec3 aInfo;varying vec2 vUv;varying vec3 vInfo;void main(){vUv=uv;vInfo=aInfo;gl_Position=projectionMatrix*modelViewMatrix*instanceMatrix*vec4(position,1.);}`,
     fragmentShader: `varying vec2 vUv;varying vec3 vInfo;float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}void main(){vec2 p=vUv*2.-1.;float angle=atan(p.y,p.x),r=length(p);float rag=sin(angle*13.+vInfo.y)*.05+sin(angle*23.-vInfo.y)*.025;float patchy=hash(floor(p*17.+vInfo.y));float mask=vInfo.z>.5?exp(-pow((r-.78-rag)/.105,2.))*(.24+.76*step(.31,patchy)):(1.-smoothstep(.48,.97,r+rag))*(.3+.7*patchy);gl_FragColor=vec4(vec3(.62,.73,.74),vInfo.x*mask);
@@ -103,7 +118,7 @@ export function createTorpedoTrialView(T) {
       #include <encodings_fragment>
     }` });
   const foam = new T.InstancedMesh(foamGeometry, foamMaterial, foamCapacity); foam.name = 'Pooled irregular surface wake and blast foam'; foam.count = 0; foam.frustumCulled = false; foam.renderOrder = 3; effects.add(foam);
-  const debris = new T.InstancedMesh(new T.BoxGeometry(1, 1, 1), darkMat, 12); debris.name = 'Pooled small trial-target fragments'; debris.count = 0; debris.frustumCulled = false; debris.castShadow = true; effects.add(debris);
+  const debris = new T.InstancedMesh(new T.BoxGeometry(1, 1, 1), darkMat, 32); debris.name = 'Pooled small trial-target fragments'; debris.count = 0; debris.frustumCulled = false; debris.castShadow = true; effects.add(debris);
   const bounds = new T.Box3(); let spriteCount = 0, foamCount = 0, debrisCount = 0;
   const colour = { spray: [.57, .70, .73], column: [.84, .94, .97], bubbles: [.57, .78, .79], smoke: [.10, .12, .12], flash: [1.0, .52, .12] };
   function puff(p, width, height, alpha, kind, seed) {
@@ -118,8 +133,19 @@ export function createTorpedoTrialView(T) {
   }
   const eventOf = (run, name) => { const e = run?.[name]; return e && Number.isFinite(e.time) && finite3(e.position) ? e : null; };
   function update(time, sample, run) {
-    const t = Number.isFinite(Number(time)) ? Number(time) : 0, entry = eventOf(run, 'entry'), contact = eventOf(run, 'contact');
-    spriteCount = foamCount = debrisCount = 0; bounds.makeEmpty(); targetGroup.position.set(850, 0, 0); targetGroup.rotation.set(0, 0, 0); scar.visible = false;
+    const t = Number.isFinite(Number(time)) ? Number(time) : 0;
+    const samples = Array.isArray(sample) ? sample : [sample], runs = Array.isArray(run) ? run : [run];
+    // Reset the shared pools once, then append each member's causal effects.
+    // A bounded formation never creates duplicate scenery or effect draws.
+    const memberCount = Math.min(3, Math.max(samples.length, runs.length));
+    spriteCount = foamCount = debrisCount = 0; bounds.makeEmpty(); targetGroup.position.set(850, 0, 0); targetGroup.rotation.set(0, 0, 0);
+    scars.forEach(scar => { scar.visible = false; });
+    let recoilRoll = 0, recoilHeave = 0;
+    const perMember = [];
+    for (let member = 0; member < memberCount; member++) {
+      const sample = samples[member], run = runs[member], scar = scars[member];
+      const entry = eventOf(run, 'entry'), contact = eventOf(run, 'contact');
+      const before = { sprites: spriteCount, foam: foamCount, debris: debrisCount };
     const contactAge = contact && t >= contact.time ? t - contact.time : -1;
     if (contactAge >= 0) {
       const normal = new T.Vector3(...(finite3(contact.normal) ? contact.normal : [-1, 0, 0])); if (normal.lengthSq() < .001) normal.set(-1, 0, 0); normal.normalize();
@@ -160,8 +186,8 @@ export function createTorpedoTrialView(T) {
     }
     if (contactAge >= 0 && contactAge < 6.4) {
       const a = contactAge, p = contact.position, side = Math.sign(p[0] - 850) || -1;
-      targetGroup.rotation.z = -side * .026 * Math.exp(-a / 1.1) * Math.sin(a * 3.8);
-      targetGroup.position.y = -.11 * Math.exp(-a / 1.2) * Math.sin(a * 4.1);
+      recoilRoll += -side * .026 * Math.exp(-a / 1.1) * Math.sin(a * 3.8);
+      recoilHeave += -.11 * Math.exp(-a / 1.2) * Math.sin(a * 4.1);
       const foamAlpha = (1 - smooth((a - .65) / 5.6)) * .48;
       patch(p[0], p[2], 1.1 + a * 3.0, 1.1 + a * 3.0, 0, foamAlpha, 75.2, true);
       patch(p[0], p[2], 1.6 + a * 2.1, 1.1 + a * 1.6, .2, foamAlpha * .43, 18.7);
@@ -201,16 +227,32 @@ export function createTorpedoTrialView(T) {
         const angle = i * 2.399963, width = .8 + age * (1.05 + noise(i + 301) * .5), alpha = smooth(age / .5) * (1 - smooth((age - 1.6) / 4.2)) * .15;
         puff([p[0] + Math.cos(angle) * (1 + age * .38) + age * .45, 1.7 + age * (1.4 + noise(i + 303) * .9), p[2] + Math.sin(angle) * (1 + age * .4)], width, width * 1.15, alpha, 'smoke', 711 + i * 5.3);
       }
-      if (a < 3.8) for (let i = 0; i < 10; i++) {
+      if (a < 3.8) for (let i = 0; i < 10 && debrisCount < 32; i++) {
         const angle = i * 2.399963, speed = 2.3 + noise(i + 451) * 4.8, y = .2 + (6.8 + noise(i + 466) * 7) * a - 4.903325 * a * a;
         if (y < .025) continue;
         position.set(p[0] + Math.cos(angle) * speed * a, y, p[2] + Math.sin(angle) * speed * a); quaternion.setFromEuler(new T.Euler(a * (2 + i * .13), a * (1.3 + i * .17), i + a * 2.7)); scale.set(.09 + noise(i + 401) * .24, .08 + noise(i + 412) * .18, .12 + noise(i + 435) * .3); matrix.compose(position, quaternion, scale); debris.setMatrixAt(debrisCount++, matrix); bounds.expandByPoint(position);
       }
     }
+      perMember.push({
+        index: member, sprayAndSmoke: spriteCount - before.sprites, surfaceFoam: foamCount - before.foam, debris: debrisCount - before.debris,
+        contactMark: scar.visible ? 1 : 0, entryAge: entry && t >= entry.time ? t - entry.time : null, contactAge: contactAge >= 0 ? contactAge : null
+      });
+    }
+    // Several near-simultaneous impulses add, with a visual-only bound that
+    // settles back to the unchanged slab-test geometry as each impulse fades.
+    targetGroup.rotation.z = clamp(recoilRoll, -.052, .052);
+    targetGroup.position.y = clamp(recoilHeave, -.22, .22);
     spriteGeometry.instanceCount = spriteCount; sprites.visible = spriteCount > 0; foam.count = foamCount; foam.visible = foamCount > 0; debris.count = debrisCount; debris.visible = debrisCount > 0;
     for (const attr of [centres, dimensions, tint, styles, foamInfo]) attr.needsUpdate = true; foam.instanceMatrix.needsUpdate = debris.instanceMatrix.needsUpdate = true;
     targetGroup.updateMatrixWorld(true);
-    return { sprayAndSmoke: spriteCount, surfaceFoam: foamCount, debris: debrisCount, contactMark: scar.visible ? 1 : 0, entryAge: entry && t >= entry.time ? t - entry.time : null, contactAge: contactAge >= 0 ? contactAge : null };
+    const firstAge = key => { const ages = perMember.map(member => member[key]).filter(Number.isFinite); return ages.length ? Math.max(...ages) : null; };
+    return {
+      sprayAndSmoke: spriteCount, surfaceFoam: foamCount, debris: debrisCount, contactMark: perMember.reduce((sum, member) => sum + member.contactMark, 0),
+      // Preserve the single-run fields; formation summary ages refer to the
+      // earliest event already reached, while perMember retains every age.
+      entryAge: firstAge('entryAge'), contactAge: firstAge('contactAge'),
+      members: memberCount, entries: perMember.filter(member => member.entryAge !== null).length, contacts: perMember.filter(member => member.contactAge !== null).length, perMember
+    };
   }
   update(0, null, null);
   return { group, targetGroup, targetBounds, update, getEffectBounds: () => bounds.isEmpty() ? null : bounds.clone() };

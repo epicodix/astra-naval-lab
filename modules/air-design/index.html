@@ -75,7 +75,10 @@
         <section class="panel" data-trial-panel data-controls inert hidden>
           <div class="panel-heading"><h2 data-i18n="trialTitle">투하 → 입수 → 항주 → 명중</h2></div>
           <p class="trial-description" data-i18n="trialDescription">저공에서 분리한 어뢰가 수중으로 진입해 고정 시험 표적을 향해 나아갑니다.</p>
+          <label class="field"><span data-i18n="attackFormation">공격 편대</span><select data-trial-formation><option value="solo" data-i18n="soloAttack">단독 투하</option><option value="vee" data-i18n="formationAttack">3기 편대 · 순차 투하</option></select></label>
+          <label class="field" data-follow-field hidden><span data-i18n="followMember">추적 대상</span><select data-follow-member><option value="all" data-i18n="followAll">편대 전체</option><option value="0" data-i18n="member1">1번기 · 어뢰</option><option value="1" data-i18n="member2">2번기 · 어뢰</option><option value="2" data-i18n="member3">3번기 · 어뢰</option></select></label>
           <button class="button trial-start" type="button" data-launch data-i18n="launch">투하부터 다시 보기</button>
+          <ol class="member-status" data-member-status hidden aria-label="편대별 진행 상태" data-i18n-aria="memberStatus"><li><b>1</b><span data-member-phase="0"></span><small data-member-distance="0"></small></li><li><b>2</b><span data-member-phase="1"></span><small data-member-distance="1"></small></li><li><b>3</b><span data-member-phase="2"></span><small data-member-distance="2"></small></li></ol>
           <div class="phase-grid" role="group" data-i18n-aria="jumpToPhase" aria-label="장면 바로 보기">
             <button type="button" data-phase="release" data-i18n="release">투하</button><button type="button" data-phase="entry" data-i18n="waterEntry">입수</button><button type="button" data-phase="running" data-i18n="running">수중 항주</button><button type="button" data-phase="hit" data-i18n="hit">명중</button>
           </div>
